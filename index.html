@@ -382,8 +382,8 @@
     minSpawnEvery: 240,
 
     // ✅ 손 속도 0.4배(더 느리게)
-    speedMin: 44,
-    speedMax: 136,
+    speedMin: 40,
+    speedMax: 120,
 
     enemies: [],
     effects: [],
@@ -421,8 +421,8 @@
     state.spawnEvery = 650;
 
     // 초기 속도도 0.4배로 리셋
-    state.speedMin = 44;
-    state.speedMax = 136;
+    state.speedMin = 40;
+    state.speedMax = 120;
 
     state.enemies.length = 0;
     state.effects.length = 0;
@@ -720,8 +720,8 @@
     ctx.strokeStyle = 'rgba(255,255,255,0.95)';
     ctx.fillStyle = '#111';
     const ty = ef.y + (38 * state.dpr);
-    ctx.strokeText('굿!', ef.x, ty);
-    ctx.fillText('굿!', ef.x, ty);
+    ctx.strokeText('Good!', ef.x, ty);
+    ctx.fillText('Good!', ef.x, ty);
 
     ctx.restore();
   }
@@ -870,3 +870,4 @@
 </script>
 </body>
 </html>
+
