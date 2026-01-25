@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>이놈 디펜스 (Canvas)</title>
+  <style>
+    :root{
+      --ink:#1f1f1f;
+      --panel:rgba(255,255,255,0.90);
+      --shadow:rgba(0,0,0,0.16);
+      --btn:#ff6b6b;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      background:#ffffff;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Arial,sans-serif;
+      color:var(--ink);
+      overscroll-behavior:none;
+      touch-action:none;
+    }
+    #wrap{position:relative;height:100%;width:100%;display:grid;place-items:center;}
+    canvas{width:100vw;height:100vh;display:block;background:#ffffff;}
+
+    .hud{
+      position:absolute;
+      top: env(safe-area-inset-top, 0px);
+      left: env(safe-area-inset-left, 0px);
+      right: env(safe-area-inset-right, 0px);
+      padding:10px 14px;
+      display:flex;justify-content:space-between;align-items:center;
+      pointer-events:none;user-select:none;
+      font-weight:1000;letter-spacing:-0.2px;
+      text-shadow:0 1px 0 rgba(255,255,255,0.8);
+    }
+    .chip{
+      background:rgba(255,255,255,0.78);
+      border-radius:999px;
+      padding:8px 12px;
+      box-shadow:0 6px 16px var(--shadow);
+      border:1px solid rgba(0,0,0,0.06);
+      pointer-events:none;
+    }
+
+    .overlay{
+      position:absolute;inset:0;
+      display:none;place-items:center;
+      padding:18px;
+      background:rgba(0,0,0,0.16);
+    }
+    .panel{
+      width:min(520px,92vw);
+      border-radius:22px;
+      background:var(--panel);
+      box-shadow:0 18px 40px var(--shadow);
+      padding:18px 16px 16px;
+      text-align:center;
+    }
+    .panel h1{margin:6px 0 8px;font-size:22px;letter-spacing:-0.4px;}
+    .panel p{margin:8px 0 14px;font-size:15px;opacity:0.92;}
+    .btn{
+      appearance:none;border:0;border-radius:16px;
+      padding:14px 16px;width:100%;
+      font-size:18px;font-weight:1000;
+      cursor:pointer;
+      box-shadow:0 12px 24px var(--shadow);
+      color:#fff;
+      background:linear-gradient(135deg,var(--btn) 0%, #ff3d3d 100%);
+    }
+    .btn.secondary{
+      margin-top:10px;
+      background:linear-gradient(135deg,#ffb703 0%, #fb8500 100%);
+    }
+    .btn:active{transform:translateY(1px);}
+    .sub{margin-top:10px;font-size:13px;opacity:0.75;line-height:1.4;}
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div class="hud">
+    <div class="chip" id="scoreChip">점수: 0</div>
+    <div class="chip" id="hintChip">손가락을 터치!</div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h1>으~ 너무 써!</h1>
+      <p id="finalScore">최종 점수: 0</p>
+      <button class="btn" id="restartBtn">다시하기</button>
+      <button class="btn secondary" id="goBtn">비터북스 쓴맛 동화책 보러가기</button>
+      <div class="sub">
+        터치/클릭으로 손가락을 잡으면 +10점<br/>
+        손가락이 입에 닿으면 게임 오버
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ✅ 대표님 블로그/판매페이지 URL로 교체하세요.
+  // 기대 동작 확인 필요: 버튼 클릭 시 "새 탭"으로 여는 게 맞나요, 아니면 "같은 탭"이 좋나요?
+  const BOOK_URL = 'https://smartstore.naver.com/bitterbooks';
+
+  const canvas = document.getElementById('c');
+  const scoreChip = document.getElementById('scoreChip');
+  const hintChip  = document.getElementById('hintChip');
+  const overlay   = document.getElementById('overlay');
+  const finalScoreEl = document.getElementById('finalScore');
+  const restartBtn = document.getElementById('restartBtn');
+  const goBtn = document.getElementById('goBtn');
+
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) {
+    overlay.style.display = 'grid';
+    finalScoreEl.textContent = '캔버스 초기화 실패 (브라우저 호환 문제)';
+    return;
+  }
+
+  // ===== util =====
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const rand = (a,b)=>a+Math.random()*(b-a);
+
+  function resize() {
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    state.dpr = dpr;
+  }
+  window.addEventListener('resize', resize, { passive: true });
+
+  function loadImg(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ img, ok: true });
+      img.onerror = () => resolve({ img: null, ok: false });
+      img.src = src;
+    });
+  }
+
+  const assets = {
+    mouth: { img: null, ok: false, src: 'mouth.png' },
+    finger:{ img: null, ok: false, src: 'finger.png' },
+    inom:  { img: null, ok: false, src: 'inom.png' },
+  };
+
+  // ===== state =====
+  const state = {
+    dpr: 1,
+    running: false,
+    gameOver: false,
+    score: 0,
+
+    spawnTimer: 0,
+    spawnEvery: 650,
+    minSpawnEvery: 240,
+    speedMin: 110,
+    speedMax: 340,
+
+    enemies: [],
+    effects: [],
+
+    lastTs: 0,
+    center: { x: 0, y: 0 },
+
+    // ✅ 입 크게
+    mouthRadius: 110,
+
+    // ✅ 게임오버 직전 연출
+    dangerLevel: 0,
+    camShake: { x:0, y:0, mag:0 },
+    nearThreshold: 190,
+
+    // ✅ 타격감(히트) 쉐이크 설정
+    hitShakeKick: 14,   // hit 순간 mag 부스트(논리 px)
+    hitShakeJitter: 8,  // hit 순간 x/y 변화(논리 px)
+  };
+
+  function resetGame() {
+    state.running = true;
+    state.gameOver = false;
+    state.score = 0;
+
+    state.spawnTimer = 0;
+    state.spawnEvery = 650;
+    state.speedMin = 110;
+    state.speedMax = 340;
+
+    state.enemies.length = 0;
+    state.effects.length = 0;
+
+    state.dangerLevel = 0;
+    state.camShake = { x:0, y:0, mag:0 };
+
+    scoreChip.textContent = `점수: ${state.score}`;
+    hintChip.textContent = '손가락을 터치!';
+    overlay.style.display = 'none';
+
+    state.lastTs = performance.now();
+  }
+
+  function endGame() {
+    state.running = false;
+    state.gameOver = true;
+    finalScoreEl.textContent = `최종 점수: ${state.score}`;
+    overlay.style.display = 'grid';
+    hintChip.textContent = '게임 오버';
+  }
+
+  function getCanvasPointFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches && e.touches[0] ? e.touches[0] : null;
+    const clientX = touch ? touch.clientX : e.clientX;
+    const clientY = touch ? touch.clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * state.dpr,
+      y: (clientY - rect.top) * state.dpr
+    };
+  }
+
+  // ===== gameplay =====
+  function spawnEnemy() {
+    const w = canvas.width, h = canvas.height;
+    const edge = (Math.random() * 4) | 0;
+    let x, y;
+    const pad = 30 * state.dpr;
+
+    if (edge === 0) { x = rand(0, w); y = -pad; }
+    else if (edge === 1) { x = w + pad; y = rand(0, h); }
+    else if (edge === 2) { x = rand(0, w); y = h + pad; }
+    else { x = -pad; y = rand(0, h); }
+
+    const cx = state.center.x, cy = state.center.y;
+    const dx = cx - x, dy = cy - y;
+    const len = Math.hypot(dx, dy) || 1;
+
+    const speed = rand(state.speedMin, state.speedMax) * state.dpr;
+    const vx = (dx / len) * speed;
+    const vy = (dy / len) * speed;
+
+    const r = 22 * state.dpr;
+    state.enemies.push({ x, y, vx, vy, r, alive:true });
+  }
+
+  function addEffect(x, y) {
+    state.effects.push({ x, y, ttl: 500, total: 500 });
+  }
+
+  function hitTestCircle(px, py, cx, cy, r) {
+    const dx = px - cx, dy = py - cy;
+    return (dx*dx + dy*dy) <= r*r;
+  }
+
+  function applyHitShake() {
+    // ✅ 타격감: 손가락 터질 때 짧게 "톡" 흔들림
+    const kick = state.hitShakeKick * state.dpr;
+    const jitter = state.hitShakeJitter * state.dpr;
+    state.camShake.mag = Math.max(state.camShake.mag, kick);
+    state.camShake.x += (Math.random() - 0.5) * jitter;
+    state.camShake.y += (Math.random() - 0.5) * jitter;
+  }
+
+  function handlePointer(e) {
+    if (!state.running) return;
+    e.preventDefault();
+
+    const p = getCanvasPointFromEvent(e);
+
+    let hitIndex = -1;
+    for (let i = state.enemies.length - 1; i >= 0; i--) {
+      const en = state.enemies[i];
+      if (!en.alive) continue;
+      if (hitTestCircle(p.x, p.y, en.x, en.y, en.r * 1.25)) {
+        hitIndex = i;
+        break;
+      }
+    }
+
+    if (hitIndex >= 0) {
+      const en = state.enemies[hitIndex];
+      en.alive = false;
+      addEffect(en.x, en.y);
+      applyHitShake();
+
+      state.score += 10;
+      scoreChip.textContent = `점수: ${state.score}`;
+      hintChip.textContent = '이놈!';
+    }
+  }
+
+  canvas.addEventListener('touchstart', handlePointer, { passive:false });
+  canvas.addEventListener('mousedown', handlePointer);
+
+  restartBtn.addEventListener('click', resetGame);
+  goBtn.addEventListener('click', () => {
+    // ✅ 기본은 새 탭. 같은 탭을 원하시면 window.location.href = BOOK_URL 로 변경.
+    window.open(BOOK_URL, '_blank', 'noopener,noreferrer');
+  });
+
+  // ===== draw =====
+  function drawBackground(d) {
+    const w = canvas.width, h = canvas.height;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    // (선택) 게임 오버 직전 아주 약한 비네트
+    if (d > 0.02 && state.running) {
+      ctx.save();
+      ctx.globalAlpha = 0.06 * d;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'destination-out';
+      const rg = ctx.createRadialGradient(
+        state.center.x, state.center.y, 140*state.dpr,
+        state.center.x, state.center.y, 650*state.dpr
+      );
+      rg.addColorStop(0, 'rgba(0,0,0,0)');
+      rg.addColorStop(1, 'rgba(0,0,0,1)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  function drawMouthAt(cx, cy, scaleMul) {
+    const r = state.mouthRadius * state.dpr;
+    const scale = scaleMul || 1;
+
+    const plateR = r * 1.25 * scale;
+
+    // 그림자
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 10*state.dpr*scale, plateR*1.05, plateR*0.72, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // 플레이트
+    ctx.save();
+    ctx.fillStyle = '#fff7e6';
+    ctx.beginPath();
+    ctx.arc(cx, cy, plateR, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,183,3,0.45)';
+    ctx.lineWidth = Math.max(3, 3 * state.dpr);
+    ctx.stroke();
+    ctx.restore();
+
+    // 입 본체
+    if (assets.mouth.ok && assets.mouth.img) {
+      const img = assets.mouth.img;
+      const size = r * 4.8 * scale;
+      ctx.drawImage(img, cx - size/2, cy - size/2, size, size);
+    } else {
+      const size = r * 4.2 * scale;
+      ctx.fillStyle = '#1f9dff';
+      ctx.fillRect(cx - size/2, cy - size/2, size, size);
+      ctx.strokeStyle = '#003a66';
+      ctx.lineWidth = Math.max(3, 3 * state.dpr);
+      ctx.beginPath();
+      ctx.arc(cx, cy + size*0.15, size*0.28, 0, Math.PI, false);
+      ctx.stroke();
+    }
+
+    return r;
+  }
+
+  function drawFinger(en) {
+    // ✅ 손가락 크게
+    const scale = 3.4;
+
+    // 그림자
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(en.x + 6*state.dpr, en.y + 8*state.dpr, en.r*1.05, en.r*0.9, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    if (assets.finger.ok && assets.finger.img) {
+      const img = assets.finger.img;
+      const size = en.r * scale;
+      const angle = Math.atan2(en.vy, en.vx);
+
+      ctx.save();
+      ctx.translate(en.x, en.y);
+      ctx.rotate(angle);
+
+      // 얕은 받침
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#fff7e6';
+      ctx.beginPath();
+      ctx.arc(0, 0, (size*0.42), 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 0.45;
+      ctx.strokeStyle = 'rgba(255,183,3,0.45)';
+      ctx.lineWidth = Math.max(2, 2*state.dpr);
+      ctx.stroke();
+
+      ctx.globalAlpha = 1;
+      ctx.drawImage(img, -size/2, -size/2, size, size);
+      ctx.restore();
+    } else {
+      // fallback: 빨간 원
+      ctx.fillStyle = '#ff3d3d';
+      ctx.beginPath();
+      ctx.arc(en.x, en.y, en.r*1.25, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,183,3,0.55)';
+      ctx.lineWidth = Math.max(3, 3*state.dpr);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.arc(en.x - en.r*0.25, en.y - en.r*0.25, en.r*0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawEffect(ef) {
+    const t = ef.ttl / ef.total;
+    const alpha = clamp(t, 0, 1);
+    const pop = 1.0 + (1 - t) * 0.15;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const base = 56 * state.dpr * pop;
+
+    if (assets.inom.ok && assets.inom.img) {
+      ctx.drawImage(assets.inom.img, ef.x - base/2, ef.y - base/2, base, base);
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      const spikes = 8;
+      const outer = 18 * state.dpr * pop;
+      const inner = 8 * state.dpr * pop;
+      for (let i = 0; i < spikes * 2; i++) {
+        const ang = (Math.PI / spikes) * i;
+        const rr = (i % 2 === 0) ? outer : inner;
+        const x = ef.x + Math.cos(ang) * rr;
+        const y = ef.y + Math.sin(ang) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.font = `${Math.floor(22 * state.dpr)}px system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = Math.max(4, 4 * state.dpr);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillStyle = '#111';
+    const ty = ef.y + (38 * state.dpr);
+    ctx.strokeText('이놈!', ef.x, ty);
+    ctx.fillText('이놈!', ef.x, ty);
+
+    ctx.restore();
+  }
+
+  // ===== danger + shake =====
+  function computeDangerLevel() {
+    const cx = state.center.x, cy = state.center.y;
+    let minD = Infinity;
+    for (const en of state.enemies) {
+      if (!en.alive) continue;
+      const d = Math.hypot(en.x - cx, en.y - cy);
+      if (d < minD) minD = d;
+    }
+    if (!isFinite(minD)) return 0;
+
+    const threshold = state.nearThreshold * state.dpr;
+    const mouthR = state.mouthRadius * state.dpr * 0.85;
+    const t = (threshold - minD) / Math.max(1, (threshold - mouthR));
+    return clamp(t, 0, 1);
+  }
+
+  function updateCameraShake(dt) {
+    const d = state.dangerLevel;
+
+    // 기본 흔들림(게임오버 임박)
+    const baseMag = (3 + 20 * d * d) * state.dpr;
+
+    // 타격감(히트) 흔들림이 섞이도록 mag를 base로 서서히 수렴
+    state.camShake.mag = lerp(state.camShake.mag, baseMag, 0.10);
+
+    const jitter = (0.6 + 1.6 * d) * (dt / 16.67);
+    state.camShake.x = lerp(state.camShake.x, (Math.random() - 0.5) * state.camShake.mag, 0.22 * jitter);
+    state.camShake.y = lerp(state.camShake.y, (Math.random() - 0.5) * state.camShake.mag, 0.22 * jitter);
+
+    if (d < 0.02) {
+      state.camShake.x *= 0.86;
+      state.camShake.y *= 0.86;
+      state.camShake.mag *= 0.92;
+    } else {
+      state.camShake.mag *= 0.985;
+    }
+  }
+
+  // ===== loop =====
+  function update(dt) {
+    state.spawnTimer += dt;
+    while (state.spawnTimer >= state.spawnEvery) {
+      state.spawnTimer -= state.spawnEvery;
+      spawnEnemy();
+      state.spawnEvery = Math.max(state.minSpawnEvery, state.spawnEvery - 6);
+      state.speedMin = Math.min(260, state.speedMin + 0.6);
+      state.speedMax = Math.min(520, state.speedMax + 0.9);
+    }
+
+    for (const en of state.enemies) {
+      if (!en.alive) continue;
+      en.x += en.vx * (dt / 1000);
+      en.y += en.vy * (dt / 1000);
+    }
+
+    for (const ef of state.effects) ef.ttl -= dt;
+
+    state.enemies = state.enemies.filter(en => en.alive);
+    state.effects = state.effects.filter(ef => ef.ttl > 0);
+
+    state.dangerLevel = computeDangerLevel();
+    updateCameraShake(dt);
+
+    // 게임오버 체크
+    const cx = state.center.x, cy = state.center.y;
+    const mouthR = state.mouthRadius * state.dpr * 0.85;
+    for (const en of state.enemies) {
+      const rr = en.r + mouthR;
+      const dx = en.x - cx, dy = en.y - cy;
+      if ((dx*dx + dy*dy) <= rr*rr) {
+        state.dangerLevel = 1;
+        state.camShake.mag = Math.max(state.camShake.mag, 26 * state.dpr);
+        endGame();
+        break;
+      }
+    }
+  }
+
+  function render() {
+    state.center.x = canvas.width / 2;
+    state.center.y = canvas.height / 2;
+
+    ctx.save();
+    ctx.translate(state.camShake.x, state.camShake.y);
+
+    drawBackground(state.dangerLevel);
+
+    const mouthScale = 1.0 + 0.72 * (state.dangerLevel ** 1.6);
+    drawMouthAt(state.center.x, state.center.y, mouthScale);
+
+    for (const en of state.enemies) drawFinger(en);
+    for (const ef of state.effects) drawEffect(ef);
+
+    ctx.restore();
+  }
+
+  function loop(ts) {
+    const dt = Math.min(34, ts - state.lastTs);
+    state.lastTs = ts;
+    if (state.running) update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ===== tests (간단 런타임 체크) =====
+  function runSelfTests() {
+    console.assert(document.getElementById('c') instanceof HTMLCanvasElement, 'Canvas element should exist');
+    console.assert(typeof spawnEnemy === 'function', 'spawnEnemy should exist');
+    console.assert(typeof drawBackground === 'function', 'drawBackground should exist');
+    console.assert(typeof drawMouthAt === 'function', 'drawMouthAt should exist');
+    console.assert(typeof drawFinger === 'function', 'drawFinger should exist');
+    console.assert(typeof computeDangerLevel === 'function', 'computeDangerLevel should exist');
+
+    // 1) 버튼 ID 중복이 없어야 함
+    const dup = document.querySelectorAll('#goBtn');
+    console.assert(dup.length === 1, 'goBtn should be unique');
+
+    // 2) 적 생성 후 배열 증가
+    const before = state.enemies.length;
+    spawnEnemy();
+    console.assert(state.enemies.length === before + 1, 'spawnEnemy should push one enemy');
+
+    // 3) 배경 렌더 호출 시 예외 없어야 함
+    drawBackground(0);
+
+    // 4) 충돌 판정 기본
+    console.assert(hitTestCircle(0,0,0,0,10) === true, 'hitTestCircle basic');
+    console.assert(hitTestCircle(20,0,0,0,10) === false, 'hitTestCircle miss');
+
+    // 테스트로 추가된 적 제거
+    state.enemies.length = before;
+  }
+
+  // ===== boot =====
+  async function boot() {
+    resize();
+
+    const [m, f, i] = await Promise.all([
+      loadImg(assets.mouth.src),
+      loadImg(assets.finger.src),
+      loadImg(assets.inom.src),
+    ]);
+    assets.mouth.img = m.img; assets.mouth.ok = m.ok;
+    assets.finger.img = f.img; assets.finger.ok = f.ok;
+    assets.inom.img = i.img; assets.inom.ok = i.ok;
+
+    const missing = [];
+    if (!assets.mouth.ok) missing.push('mouth.png');
+    if (!assets.finger.ok) missing.push('finger.png');
+    if (!assets.inom.ok) missing.push('inom.png');
+    if (missing.length) {
+      hintChip.textContent = `이미지 미로드: ${missing.join(', ')} (도형으로 대체)`;
+      setTimeout(() => { if (!state.gameOver) hintChip.textContent = '손가락을 터치!'; }, 2200);
+    }
+
+    runSelfTests();
+
+    resetGame();
+    requestAnimationFrame((t) => { state.lastTs = t; loop(t); });
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
