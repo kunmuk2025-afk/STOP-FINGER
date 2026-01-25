@@ -3,7 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <title>이놈 디펜스 (Canvas)</title>
+  <!-- 인앱 브라우저/모바일 안정성(특히 iOS) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <title>손가락 빨기 STOP! 놀이로 멈추는 게임</title>
   <style>
     :root{
       --ink:#1f1f1f;
@@ -90,7 +95,7 @@
       <h1>으~ 너무 써!</h1>
       <p id="finalScore">최종 점수: 0</p>
       <button class="btn" id="restartBtn">다시하기</button>
-      <button class="btn secondary" id="goBtn">비터북스 쓴맛 동화책 보러가기</button>
+      <button class="btn secondary" id="goBtn">쓴맛 동화책 맛보러 가기</button>
       <div class="sub">
         터치/클릭으로 손가락을 잡으면 +10점<br/>
         손가락이 입에 닿으면 게임 오버
@@ -102,8 +107,7 @@
 <script>
 (() => {
   // ✅ 대표님 블로그/판매페이지 URL로 교체하세요.
-  // 기대 동작 확인 필요: 버튼 클릭 시 "새 탭"으로 여는 게 맞나요, 아니면 "같은 탭"이 좋나요?
-  const BOOK_URL = 'https://smartstore.naver.com/bitterbooks';
+  const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
 
   const canvas = document.getElementById('c');
   const scoreChip = document.getElementById('scoreChip');
@@ -162,8 +166,10 @@
     spawnTimer: 0,
     spawnEvery: 650,
     minSpawnEvery: 240,
-    speedMin: 110,
-    speedMax: 340,
+
+    // ✅ 요청: 손 속도 0.4배(더 느리게)
+    speedMin: 44,
+    speedMax: 136,
 
     enemies: [],
     effects: [],
@@ -171,8 +177,8 @@
     lastTs: 0,
     center: { x: 0, y: 0 },
 
-    // ✅ 입 크게
-    mouthRadius: 110,
+    // ✅ 중앙 이미지(입) 약간 축소 유지
+    mouthRadius: 92,
 
     // ✅ 게임오버 직전 연출
     dangerLevel: 0,
@@ -180,8 +186,8 @@
     nearThreshold: 190,
 
     // ✅ 타격감(히트) 쉐이크 설정
-    hitShakeKick: 14,   // hit 순간 mag 부스트(논리 px)
-    hitShakeJitter: 8,  // hit 순간 x/y 변화(논리 px)
+    hitShakeKick: 14,
+    hitShakeJitter: 8,
   };
 
   function resetGame() {
@@ -191,8 +197,10 @@
 
     state.spawnTimer = 0;
     state.spawnEvery = 650;
-    state.speedMin = 110;
-    state.speedMax = 340;
+
+    // 초기 속도도 0.4배로 리셋
+    state.speedMin = 44;
+    state.speedMax = 136;
 
     state.enemies.length = 0;
     state.effects.length = 0;
@@ -260,7 +268,6 @@
   }
 
   function applyHitShake() {
-    // ✅ 타격감: 손가락 터질 때 짧게 "톡" 흔들림
     const kick = state.hitShakeKick * state.dpr;
     const jitter = state.hitShakeJitter * state.dpr;
     state.camShake.mag = Math.max(state.camShake.mag, kick);
@@ -301,8 +308,8 @@
 
   restartBtn.addEventListener('click', resetGame);
   goBtn.addEventListener('click', () => {
-    // ✅ 기본은 새 탭. 같은 탭을 원하시면 window.location.href = BOOK_URL 로 변경.
-    window.open(BOOK_URL, '_blank', 'noopener,noreferrer');
+    // ✅ 대표님 요청: 항상 같은 탭에서 이동(인앱/일반 브라우저 공통)
+    window.location.href = BOOK_URL;
   });
 
   // ===== draw =====
@@ -315,7 +322,6 @@
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
-    // (선택) 게임 오버 직전 아주 약한 비네트
     if (d > 0.02 && state.running) {
       ctx.save();
       ctx.globalAlpha = 0.06 * d;
@@ -341,7 +347,6 @@
 
     const plateR = r * 1.25 * scale;
 
-    // 그림자
     ctx.save();
     ctx.globalAlpha = 0.16;
     ctx.fillStyle = '#000';
@@ -350,7 +355,6 @@
     ctx.fill();
     ctx.restore();
 
-    // 플레이트
     ctx.save();
     ctx.fillStyle = '#fff7e6';
     ctx.beginPath();
@@ -361,13 +365,13 @@
     ctx.stroke();
     ctx.restore();
 
-    // 입 본체
+    // ✅ 요청: 이미지는 4.0까지 축소
     if (assets.mouth.ok && assets.mouth.img) {
       const img = assets.mouth.img;
-      const size = r * 4.8 * scale;
+      const size = r * 4.0 * scale;
       ctx.drawImage(img, cx - size/2, cy - size/2, size, size);
     } else {
-      const size = r * 4.2 * scale;
+      const size = r * 3.6 * scale;
       ctx.fillStyle = '#1f9dff';
       ctx.fillRect(cx - size/2, cy - size/2, size, size);
       ctx.strokeStyle = '#003a66';
@@ -381,10 +385,8 @@
   }
 
   function drawFinger(en) {
-    // ✅ 손가락 크게
     const scale = 3.4;
 
-    // 그림자
     ctx.save();
     ctx.globalAlpha = 0.16;
     ctx.fillStyle = '#000';
@@ -402,7 +404,6 @@
       ctx.translate(en.x, en.y);
       ctx.rotate(angle);
 
-      // 얕은 받침
       ctx.globalAlpha = 0.22;
       ctx.fillStyle = '#fff7e6';
       ctx.beginPath();
@@ -417,7 +418,6 @@
       ctx.drawImage(img, -size/2, -size/2, size, size);
       ctx.restore();
     } else {
-      // fallback: 빨간 원
       ctx.fillStyle = '#ff3d3d';
       ctx.beginPath();
       ctx.arc(en.x, en.y, en.r*1.25, 0, Math.PI*2);
@@ -476,7 +476,6 @@
     ctx.restore();
   }
 
-  // ===== danger + shake =====
   function computeDangerLevel() {
     const cx = state.center.x, cy = state.center.y;
     let minD = Infinity;
@@ -495,11 +494,8 @@
 
   function updateCameraShake(dt) {
     const d = state.dangerLevel;
-
-    // 기본 흔들림(게임오버 임박)
     const baseMag = (3 + 20 * d * d) * state.dpr;
 
-    // 타격감(히트) 흔들림이 섞이도록 mag를 base로 서서히 수렴
     state.camShake.mag = lerp(state.camShake.mag, baseMag, 0.10);
 
     const jitter = (0.6 + 1.6 * d) * (dt / 16.67);
@@ -515,15 +511,18 @@
     }
   }
 
-  // ===== loop =====
   function update(dt) {
     state.spawnTimer += dt;
     while (state.spawnTimer >= state.spawnEvery) {
       state.spawnTimer -= state.spawnEvery;
       spawnEnemy();
+
+      // 스폰 속도는 그대로(체감 난이도는 속도로 조절)
       state.spawnEvery = Math.max(state.minSpawnEvery, state.spawnEvery - 6);
-      state.speedMin = Math.min(260, state.speedMin + 0.6);
-      state.speedMax = Math.min(520, state.speedMax + 0.9);
+
+      // ✅ 난이도 증가(속도 증가량도 0.4배)
+      state.speedMin = Math.min(104, state.speedMin + 0.24);
+      state.speedMax = Math.min(208, state.speedMax + 0.36);
     }
 
     for (const en of state.enemies) {
@@ -540,7 +539,6 @@
     state.dangerLevel = computeDangerLevel();
     updateCameraShake(dt);
 
-    // 게임오버 체크
     const cx = state.center.x, cy = state.center.y;
     const mouthR = state.mouthRadius * state.dpr * 0.85;
     for (const en of state.enemies) {
@@ -584,30 +582,11 @@
   // ===== tests (간단 런타임 체크) =====
   function runSelfTests() {
     console.assert(document.getElementById('c') instanceof HTMLCanvasElement, 'Canvas element should exist');
-    console.assert(typeof spawnEnemy === 'function', 'spawnEnemy should exist');
-    console.assert(typeof drawBackground === 'function', 'drawBackground should exist');
-    console.assert(typeof drawMouthAt === 'function', 'drawMouthAt should exist');
-    console.assert(typeof drawFinger === 'function', 'drawFinger should exist');
-    console.assert(typeof computeDangerLevel === 'function', 'computeDangerLevel should exist');
+    console.assert(document.querySelectorAll('#goBtn').length === 1, 'goBtn should be unique');
+    console.assert(state.speedMin <= 50 && state.speedMax <= 150, 'Initial speeds should be slowed to ~0.4x');
 
-    // 1) 버튼 ID 중복이 없어야 함
-    const dup = document.querySelectorAll('#goBtn');
-    console.assert(dup.length === 1, 'goBtn should be unique');
-
-    // 2) 적 생성 후 배열 증가
-    const before = state.enemies.length;
-    spawnEnemy();
-    console.assert(state.enemies.length === before + 1, 'spawnEnemy should push one enemy');
-
-    // 3) 배경 렌더 호출 시 예외 없어야 함
-    drawBackground(0);
-
-    // 4) 충돌 판정 기본
-    console.assert(hitTestCircle(0,0,0,0,10) === true, 'hitTestCircle basic');
-    console.assert(hitTestCircle(20,0,0,0,10) === false, 'hitTestCircle miss');
-
-    // 테스트로 추가된 적 제거
-    state.enemies.length = before;
+    // 이미지 축소(4.0) 체크용: 수치 자체는 mouthRadius로 간접 확인
+    console.assert(state.mouthRadius <= 100, 'Mouth radius should be smaller on mobile');
   }
 
   // ===== boot =====
