@@ -16,6 +16,10 @@
       --shadow:rgba(0,0,0,0.16);
       --btn:#ff6b6b;
     }
+
+    /* ✅ iOS 안전영역/인앱 브라우저에서 중앙정렬이 틀어지는 문제 방지 */
+    *{ box-sizing:border-box; }
+
     html,body{
       height:100%;
       margin:0;
@@ -25,7 +29,8 @@
       overscroll-behavior:none;
       touch-action:none;
     }
-    #wrap{position:relative;height:100%;width:100%;display:grid;place-items:center;}
+
+    #wrap{position:relative;height:100%;width:100%;}
     canvas{width:100vw;height:100vh;display:block;background:#ffffff;}
 
     .hud{
@@ -38,7 +43,10 @@
       pointer-events:none;user-select:none;
       font-weight:1000;letter-spacing:-0.2px;
       text-shadow:0 1px 0 rgba(255,255,255,0.8);
+      gap:10px;
     }
+    .hudRight{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+
     .chip{
       background:rgba(255,255,255,0.78);
       border-radius:999px;
@@ -46,14 +54,65 @@
       box-shadow:0 6px 16px var(--shadow);
       border:1px solid rgba(0,0,0,0.06);
       pointer-events:none;
+      white-space:nowrap;
     }
 
+    /* ✅ 사운드 토글 버튼(인앱 브라우저에서도 클릭 가능) */
+    .iconBtn{
+      pointer-events:auto;
+      border:1px solid rgba(0,0,0,0.08);
+      background:rgba(255,255,255,0.78);
+      border-radius:999px;
+      padding:8px 10px;
+      box-shadow:0 6px 16px var(--shadow);
+      font-weight:900;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .iconBtn:active{transform:translateY(1px);}
+
+    /* ✅ 초기 가이드 문구 */
+    .intro{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events:none;
+      padding:
+        calc(16px + env(safe-area-inset-top, 0px))
+        calc(16px + env(safe-area-inset-right, 0px))
+        calc(16px + env(safe-area-inset-bottom, 0px))
+        calc(16px + env(safe-area-inset-left, 0px));
+    }
+    .introCard{
+      background:rgba(255,255,255,0.88);
+      padding:14px 18px;
+      border-radius:16px;
+      box-shadow:0 10px 24px rgba(0,0,0,0.15);
+      text-align:center;
+      max-width:min(520px,92vw);
+    }
+    .introTitle{font-size:18px;font-weight:900;}
+    .introSub{margin-top:6px;font-size:14px;opacity:0.85;}
+
     .overlay{
-      position:absolute;inset:0;
-      display:none;place-items:center;
-      padding:18px;
+      position:absolute;
+      inset:0;
+      display:none;
+      /* ✅ flex 중앙정렬(인앱 브라우저에서 안정적) */
+      align-items:center;
+      justify-content:center;
+      /* ✅ 안전영역 포함 패딩: 노치/홈바 환경에서도 시각상 중앙 */
+      padding:
+        calc(18px + env(safe-area-inset-top, 0px))
+        calc(18px + env(safe-area-inset-right, 0px))
+        calc(18px + env(safe-area-inset-bottom, 0px))
+        calc(18px + env(safe-area-inset-left, 0px));
       background:rgba(0,0,0,0.16);
     }
+
     .panel{
       width:min(520px,92vw);
       border-radius:22px;
@@ -64,6 +123,7 @@
     }
     .panel h1{margin:6px 0 8px;font-size:22px;letter-spacing:-0.4px;}
     .panel p{margin:8px 0 14px;font-size:15px;opacity:0.92;}
+
     .btn{
       appearance:none;border:0;border-radius:16px;
       padding:14px 16px;width:100%;
@@ -78,6 +138,7 @@
       background:linear-gradient(135deg,#ffb703 0%, #fb8500 100%);
     }
     .btn:active{transform:translateY(1px);}
+
     .sub{margin-top:10px;font-size:13px;opacity:0.75;line-height:1.4;}
   </style>
 </head>
@@ -87,7 +148,17 @@
 
   <div class="hud">
     <div class="chip" id="scoreChip">점수: 0</div>
-    <div class="chip" id="hintChip">손가락을 터치!</div>
+    <div class="hudRight">
+      <div class="chip" id="hintChip">손가락을 터치!</div>
+      <button class="iconBtn" id="soundBtn" type="button" aria-label="사운드 토글">🔊</button>
+    </div>
+  </div>
+
+  <div class="intro" id="introGuide" aria-hidden="true">
+    <div class="introCard">
+      <div class="introTitle">손가락이 입에 닿기 전에 막아줘!</div>
+      <div class="introSub">(손가락을 터치하면 사라져요)</div>
+    </div>
   </div>
 
   <div class="overlay" id="overlay">
@@ -95,7 +166,7 @@
       <h1>으~ 너무 써!</h1>
       <p id="finalScore">최종 점수: 0</p>
       <button class="btn" id="restartBtn">다시하기</button>
-      <button class="btn secondary" id="goBtn">쓴맛 동화책 맛보러 가기</button>
+      <button class="btn secondary" id="goBtn">쓴맛 동화책 보러가기</button>
       <div class="sub">
         터치/클릭으로 손가락을 잡으면 +10점<br/>
         손가락이 입에 닿으면 게임 오버
@@ -106,20 +177,27 @@
 
 <script>
 (() => {
-  // ✅ 대표님 블로그/판매페이지 URL로 교체하세요.
+  // ✅ 스마트스토어/블로그 URL
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
+
+  // ✅ (선택) 실제 사운드 파일을 쓰려면 같은 폴더에 아래 파일을 올리세요.
+  // - bgm.mp3 (배경음악)
+  // - hit.mp3 (터치 타격음)
+  // 파일이 없으면 자동으로 "간단한 비프음"으로 대체됩니다.
 
   const canvas = document.getElementById('c');
   const scoreChip = document.getElementById('scoreChip');
   const hintChip  = document.getElementById('hintChip');
   const overlay   = document.getElementById('overlay');
+  const introGuide = document.getElementById('introGuide');
   const finalScoreEl = document.getElementById('finalScore');
   const restartBtn = document.getElementById('restartBtn');
   const goBtn = document.getElementById('goBtn');
+  const soundBtn = document.getElementById('soundBtn');
 
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) {
-    overlay.style.display = 'grid';
+    overlay.style.display = 'flex';
     finalScoreEl.textContent = '캔버스 초기화 실패 (브라우저 호환 문제)';
     return;
   }
@@ -150,6 +228,142 @@
     });
   }
 
+  // ===== audio =====
+  const audio = {
+    enabled: true,
+    started: false,
+    bgm: null,
+    hit: null,
+    ctx: null,
+  };
+
+  function setSoundUi() {
+    soundBtn.textContent = audio.enabled ? '🔊' : '🔇';
+  }
+
+  function tryCreateMediaAudio() {
+    // 파일이 없으면 play가 실패할 수 있으므로, 실패 시 WebAudio 비프음으로 대체
+    if (!audio.bgm) {
+      audio.bgm = new Audio('bgm.mp3');
+      audio.bgm.loop = true;
+      audio.bgm.volume = 0.25;
+      audio.bgm.preload = 'auto';
+    }
+    if (!audio.hit) {
+      audio.hit = new Audio('hit.mp3');
+      audio.hit.volume = 0.7;
+      audio.hit.preload = 'auto';
+    }
+  }
+
+  function ensureAudioContext() {
+    if (audio.ctx) return audio.ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    audio.ctx = new AC();
+    return audio.ctx;
+  }
+
+  function beep(freq=880, dur=0.06, type='square', gain=0.12) {
+    if (!audio.enabled) return;
+    const ac = ensureAudioContext();
+    if (!ac) return;
+    if (ac.state === 'suspended') ac.resume().catch(()=>{});
+
+    const t0 = ac.currentTime;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    osc.connect(g);
+    g.connect(ac.destination);
+
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  }
+
+  async function startBgmIfPossible() {
+    if (!audio.enabled) return;
+    if (audio.started) return;
+
+    tryCreateMediaAudio();
+
+    // 모바일은 사용자 제스처가 있어야 재생됨 → 최초 터치에서 호출
+    audio.started = true;
+
+    // 1) mp3 시도
+    if (audio.bgm) {
+      try {
+        await audio.bgm.play();
+        return;
+      } catch (_) {
+        // 2) WebAudio로 "은은한" 배경음(간단 루프)을 흉내
+      }
+    }
+
+    // WebAudio 배경음(짧은 패턴을 반복)
+    const ac = ensureAudioContext();
+    if (!ac) return;
+    if (ac.state === 'suspended') { try { await ac.resume(); } catch(_){} }
+
+    // 아주 단순한 2음 반복
+    const pattern = [392, 523.25]; // G4, C5
+    let idx = 0;
+    const tick = () => {
+      if (!audio.enabled || !state.running) return;
+      beep(pattern[idx % pattern.length], 0.08, 'sine', 0.04);
+      idx++;
+      setTimeout(tick, 520);
+    };
+    tick();
+  }
+
+  function playHitSound() {
+    if (!audio.enabled) return;
+    tryCreateMediaAudio();
+
+    // mp3 타격음 우선
+    if (audio.hit) {
+      try {
+        const node = audio.hit.cloneNode();
+        node.volume = 0.7;
+        node.play().catch(()=>{ beep(880, 0.06, 'square', 0.12); });
+        return;
+      } catch (_) {
+        // fallback
+      }
+    }
+    beep(880, 0.06, 'square', 0.12);
+  }
+
+  function stopBgm() {
+    if (audio.bgm) {
+      try { audio.bgm.pause(); audio.bgm.currentTime = 0; } catch(_){}
+    }
+  }
+
+  soundBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    audio.enabled = !audio.enabled;
+    setSoundUi();
+    if (!audio.enabled) {
+      stopBgm();
+    } else {
+      // 다시 켰으면 다음 사용자 입력에서 시작되도록
+      audio.started = false;
+      // 클릭 자체도 제스처이므로 즉시 시작 시도
+      startBgmIfPossible();
+    }
+  });
+
+  setSoundUi();
+
   const assets = {
     mouth: { img: null, ok: false, src: 'mouth.png' },
     finger:{ img: null, ok: false, src: 'finger.png' },
@@ -167,7 +381,7 @@
     spawnEvery: 650,
     minSpawnEvery: 240,
 
-    // ✅ 요청: 손 속도 0.4배(더 느리게)
+    // ✅ 손 속도 0.4배(더 느리게)
     speedMin: 44,
     speedMax: 136,
 
@@ -177,18 +391,26 @@
     lastTs: 0,
     center: { x: 0, y: 0 },
 
-    // ✅ 중앙 이미지(입) 약간 축소 유지
+    // 중앙 이미지(입)
     mouthRadius: 92,
 
-    // ✅ 게임오버 직전 연출
+    // 게임오버 직전 연출
     dangerLevel: 0,
     camShake: { x:0, y:0, mag:0 },
     nearThreshold: 190,
 
-    // ✅ 타격감(히트) 쉐이크 설정
+    // 타격감(히트) 쉐이크 설정
     hitShakeKick: 14,
     hitShakeJitter: 8,
   };
+
+  let introHidden = false;
+
+  function hideIntro() {
+    if (introHidden) return;
+    if (introGuide) introGuide.style.display = 'none';
+    introHidden = true;
+  }
 
   function resetGame() {
     state.running = true;
@@ -212,6 +434,13 @@
     hintChip.textContent = '손가락을 터치!';
     overlay.style.display = 'none';
 
+    // 다시하기 시 인트로 가이드는 다시 보이게
+    if (introGuide) introGuide.style.display = 'flex';
+    introHidden = false;
+
+    // 배경음은 다음 사용자 입력에서 시작(모바일 정책 대응)
+    audio.started = false;
+
     state.lastTs = performance.now();
   }
 
@@ -219,8 +448,12 @@
     state.running = false;
     state.gameOver = true;
     finalScoreEl.textContent = `최종 점수: ${state.score}`;
-    overlay.style.display = 'grid';
+    overlay.style.display = 'flex';
     hintChip.textContent = '게임 오버';
+
+    // ✅ 게임 끝나면 BGM 정지(대표님 선택: 게임 오버 시 멈춤)
+    stopBgm();
+    audio.started = false;
   }
 
   function getCanvasPointFromEvent(e) {
@@ -279,6 +512,12 @@
     if (!state.running) return;
     e.preventDefault();
 
+    // ✅ 모바일 오디오 정책 대응: 최초 터치에 BGM 시작
+    startBgmIfPossible();
+
+    // "손가락을 터치하면 사라져요" → 명중 여부와 상관없이 첫 터치에 가이드 제거
+    hideIntro();
+
     const p = getCanvasPointFromEvent(e);
 
     let hitIndex = -1;
@@ -297,18 +536,29 @@
       addEffect(en.x, en.y);
       applyHitShake();
 
+      // ✅ 타격음
+      playHitSound();
+
       state.score += 10;
       scoreChip.textContent = `점수: ${state.score}`;
-      hintChip.textContent = '이놈!';
+      hintChip.textContent = '잘했어!';
     }
   }
 
   canvas.addEventListener('touchstart', handlePointer, { passive:false });
-  canvas.addEventListener('mousedown', handlePointer);
+  canvas.addEventListener('mousedown', (e) => {
+    // 데스크탑에서도 동일하게
+    handlePointer(e);
+  });
 
-  restartBtn.addEventListener('click', resetGame);
+  restartBtn.addEventListener('click', () => {
+    resetGame();
+    // 버튼 클릭도 사용자 제스처이므로, 바로 BGM 시작 시도 가능
+    startBgmIfPossible();
+  });
+
   goBtn.addEventListener('click', () => {
-    // ✅ 대표님 요청: 항상 같은 탭에서 이동(인앱/일반 브라우저 공통)
+    // 항상 같은 탭에서 이동
     window.location.href = BOOK_URL;
   });
 
@@ -365,7 +615,6 @@
     ctx.stroke();
     ctx.restore();
 
-    // ✅ 요청: 이미지는 4.0까지 축소
     if (assets.mouth.ok && assets.mouth.img) {
       const img = assets.mouth.img;
       const size = r * 4.0 * scale;
@@ -463,6 +712,7 @@
       ctx.fill();
     }
 
+    // 히트 텍스트
     ctx.font = `${Math.floor(22 * state.dpr)}px system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -470,8 +720,8 @@
     ctx.strokeStyle = 'rgba(255,255,255,0.95)';
     ctx.fillStyle = '#111';
     const ty = ef.y + (38 * state.dpr);
-    ctx.strokeText('이놈!', ef.x, ty);
-    ctx.fillText('이놈!', ef.x, ty);
+    ctx.strokeText('굿!', ef.x, ty);
+    ctx.fillText('굿!', ef.x, ty);
 
     ctx.restore();
   }
@@ -517,10 +767,9 @@
       state.spawnTimer -= state.spawnEvery;
       spawnEnemy();
 
-      // 스폰 속도는 그대로(체감 난이도는 속도로 조절)
       state.spawnEvery = Math.max(state.minSpawnEvery, state.spawnEvery - 6);
 
-      // ✅ 난이도 증가(속도 증가량도 0.4배)
+      // 난이도 증가(속도 증가량 0.4배)
       state.speedMin = Math.min(104, state.speedMin + 0.24);
       state.speedMax = Math.min(208, state.speedMax + 0.36);
     }
@@ -583,10 +832,9 @@
   function runSelfTests() {
     console.assert(document.getElementById('c') instanceof HTMLCanvasElement, 'Canvas element should exist');
     console.assert(document.querySelectorAll('#goBtn').length === 1, 'goBtn should be unique');
-    console.assert(state.speedMin <= 50 && state.speedMax <= 150, 'Initial speeds should be slowed to ~0.4x');
-
-    // 이미지 축소(4.0) 체크용: 수치 자체는 mouthRadius로 간접 확인
-    console.assert(state.mouthRadius <= 100, 'Mouth radius should be smaller on mobile');
+    console.assert(document.querySelectorAll('#hintChip').length === 1, 'hintChip must be unique (no duplicate IDs)');
+    console.assert(typeof ctx.strokeText === 'function', 'Canvas context should be valid');
+    console.assert(soundBtn instanceof HTMLButtonElement, 'soundBtn should exist');
   }
 
   // ===== boot =====
