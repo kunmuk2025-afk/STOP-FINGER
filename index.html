@@ -12,10 +12,11 @@
   <style>
     :root{
       --ink:#1f1f1f;
-      --panel:rgba(255,255,255,0.90);
+      --panel:rgba(255,255,255,0.92);
       --shadow:rgba(0,0,0,0.16);
       --btn:#ff6b6b;
     }
+
     *{ box-sizing:border-box; }
 
     html,body{
@@ -44,6 +45,7 @@
       gap:10px;
     }
     .hudRight{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+
     .chip{
       background:rgba(255,255,255,0.78);
       border-radius:999px;
@@ -68,30 +70,7 @@
     }
     .iconBtn:active{transform:translateY(1px);}
 
-    .intro{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      pointer-events:none;
-      padding:
-        calc(16px + env(safe-area-inset-top, 0px))
-        calc(16px + env(safe-area-inset-right, 0px))
-        calc(16px + env(safe-area-inset-bottom, 0px))
-        calc(16px + env(safe-area-inset-left, 0px));
-    }
-    .introCard{
-      background:rgba(255,255,255,0.88);
-      padding:14px 18px;
-      border-radius:16px;
-      box-shadow:0 10px 24px rgba(0,0,0,0.15);
-      text-align:center;
-      max-width:min(520px,92vw);
-    }
-    .introTitle{font-size:18px;font-weight:900;}
-    .introSub{margin-top:6px;font-size:14px;opacity:0.85;}
-
+    /* ✅ 중앙 팝업(시작/게임오버 공용) */
     .overlay{
       position:absolute;
       inset:0;
@@ -103,19 +82,34 @@
         calc(18px + env(safe-area-inset-right, 0px))
         calc(18px + env(safe-area-inset-bottom, 0px))
         calc(18px + env(safe-area-inset-left, 0px));
-      background:rgba(0,0,0,0.16);
+      background:rgba(0,0,0,0.14);
     }
 
     .panel{
-      width:min(520px,92vw);
+      width:min(560px,92vw);
       border-radius:22px;
       background:var(--panel);
       box-shadow:0 18px 40px var(--shadow);
       padding:18px 16px 16px;
       text-align:center;
+      backdrop-filter:saturate(1.2) blur(2px);
     }
-    .panel h1{margin:6px 0 8px;font-size:22px;letter-spacing:-0.4px;}
+
+    .panel h1{margin:6px 0 10px;font-size:22px;letter-spacing:-0.4px;}
     .panel p{margin:8px 0 14px;font-size:15px;opacity:0.92;}
+
+    .rules{
+      text-align:left;
+      margin:10px 0 14px;
+      padding:12px 12px;
+      border-radius:14px;
+      background:rgba(255,255,255,0.75);
+      border:1px solid rgba(0,0,0,0.06);
+      box-shadow:0 8px 18px rgba(0,0,0,0.06);
+      font-size:14px;
+      line-height:1.55;
+    }
+    .rules b{font-weight:900;}
 
     .btn{
       appearance:none;border:0;border-radius:16px;
@@ -142,18 +136,25 @@
   <div class="hud">
     <div class="chip" id="scoreChip">점수: 0</div>
     <div class="hudRight">
-      <div class="chip" id="hintChip">손가락을 터치!</div>
+      <div class="chip" id="hintChip">시작하기를 눌러주세요</div>
       <button class="iconBtn" id="soundBtn" type="button" aria-label="사운드 토글">🔊</button>
     </div>
   </div>
 
-  <div class="intro" id="introGuide" aria-hidden="true">
-    <div class="introCard">
-      <div class="introTitle">손가락이 입에 닿기 전에 막아줘!</div>
-      <div class="introSub">(손가락을 터치하면 사라져요)</div>
+  <!-- ✅ 시작 화면(게임 규칙 + 시작하기) -->
+  <div class="overlay" id="startOverlay" style="display:flex;">
+    <div class="panel">
+      <h1>손가락 빨기 STOP! 미니 디펜스</h1>
+      <div class="rules" id="rulesBox">
+        <div>• <b>방법</b>: 손가락이 <b>입</b>에 닿기 전에 막아주세요.</div>
+        <div>• <b>조작</b>: 날아오는 손가락을 <b>터치</b>하면 사라져요. (+10점)</div>
+      </div>
+      <button class="btn" id="startBtn">시작하기</button>
+      <div class="sub">※ 사운드는 상단 🔊 버튼으로 끌 수 있어요</div>
     </div>
   </div>
 
+  <!-- ✅ 게임 오버 팝업 -->
   <div class="overlay" id="overlay">
     <div class="panel">
       <h1>으~ 너무 써!</h1>
@@ -161,7 +162,7 @@
       <button class="btn" id="restartBtn">다시하기</button>
       <button class="btn secondary" id="goBtn">쓴맛 동화책 보러가기</button>
       <div class="sub">
-        터치/클릭으로 손가락을 잡으면 +10점<br/>
+        손가락을 잡으면 +10점<br/>
         손가락이 입에 닿으면 게임 오버
       </div>
     </div>
@@ -170,18 +171,20 @@
 
 <script>
 (() => {
+  // ✅ 스마트스토어/블로그 URL
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
 
-  // (선택) 같은 폴더에 올리면 실제 음원으로 재생됨
-  // - bgm.mp3 / hit.mp3
-  const BGM_FILE = 'bgm.mp3';
-  const HIT_FILE = 'hit.mp3';
+  // ✅ (선택) 실제 사운드 파일을 쓰려면 같은 폴더에 아래 파일을 올리세요.
+  // - bgm.mp3 (배경음악)
+  // - hit.mp3 (터치 타격음)
+  // 파일이 없으면 자동으로 "간단한 비프음"으로 대체됩니다.
 
   const canvas = document.getElementById('c');
   const scoreChip = document.getElementById('scoreChip');
   const hintChip  = document.getElementById('hintChip');
   const overlay   = document.getElementById('overlay');
-  const introGuide = document.getElementById('introGuide');
+  const startOverlay = document.getElementById('startOverlay');
+  const startBtn = document.getElementById('startBtn');
   const finalScoreEl = document.getElementById('finalScore');
   const restartBtn = document.getElementById('restartBtn');
   const goBtn = document.getElementById('goBtn');
@@ -201,8 +204,10 @@
 
   function resize() {
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    canvas.width  = Math.floor(window.innerWidth * dpr);
-    canvas.height = Math.floor(window.innerHeight * dpr);
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
     state.dpr = dpr;
@@ -233,13 +238,13 @@
 
   function tryCreateMediaAudio() {
     if (!audio.bgm) {
-      audio.bgm = new Audio(BGM_FILE);
+      audio.bgm = new Audio('bgm.mp3');
       audio.bgm.loop = true;
       audio.bgm.volume = 0.25;
       audio.bgm.preload = 'auto';
     }
     if (!audio.hit) {
-      audio.hit = new Audio(HIT_FILE);
+      audio.hit = new Audio('hit.mp3');
       audio.hit.volume = 0.7;
       audio.hit.preload = 'auto';
     }
@@ -278,7 +283,9 @@
   }
 
   async function startBgmIfPossible() {
-    if (!audio.enabled || audio.started) return;
+    if (!audio.enabled) return;
+    if (audio.started) return;
+
     tryCreateMediaAudio();
     audio.started = true;
 
@@ -286,10 +293,9 @@
       try {
         await audio.bgm.play();
         return;
-      } catch (_) { /* fallback */ }
+      } catch (_) {}
     }
 
-    // fallback WebAudio 간단 루프
     const ac = ensureAudioContext();
     if (!ac) return;
     if (ac.state === 'suspended') { try { await ac.resume(); } catch(_){} }
@@ -313,7 +319,7 @@
       try {
         const node = audio.hit.cloneNode();
         node.volume = 0.7;
-        node.play().catch(()=>beep(880, 0.06, 'square', 0.12));
+        node.play().catch(()=>{ beep(880, 0.06, 'square', 0.12); });
         return;
       } catch (_) {}
     }
@@ -322,7 +328,7 @@
 
   function stopBgm() {
     if (audio.bgm) {
-      try { audio.bgm.pause(); audio.bgm.currentTime = 0; } catch(_) {}
+      try { audio.bgm.pause(); audio.bgm.currentTime = 0; } catch(_){}
     }
   }
 
@@ -334,7 +340,8 @@
       stopBgm();
     } else {
       audio.started = false;
-      startBgmIfPossible();
+      // 버튼 클릭도 제스처 → 즉시 재생 시도 가능
+      if (state.running) startBgmIfPossible();
     }
   });
   setSoundUi();
@@ -352,16 +359,13 @@
     gameOver: false,
     score: 0,
 
-    // ✅ 시간 경과(난이도 상승 지연용)
-    elapsedMs: 0,
-
     spawnTimer: 0,
-    spawnEvery: 720,      // 초반을 조금 더 여유 있게
+    spawnEvery: 650,
     minSpawnEvery: 240,
 
-    // ✅ 초반 속도(느리게)
-    speedMin: 36,
-    speedMax: 110,
+    // ✅ 기본 속도(느리게)
+    speedMin: 44,
+    speedMax: 136,
 
     enemies: [],
     effects: [],
@@ -377,27 +381,22 @@
 
     hitShakeKick: 14,
     hitShakeJitter: 8,
+
+    // ⏱ 난이도 타이밍 제어
+    elapsed: 0,
+    rampDelay: 10000, // 10초 뒤부터 난이도 상승
   };
 
-  let introHidden = false;
-  function hideIntro() {
-    if (introHidden) return;
-    if (introGuide) introGuide.style.display = 'none';
-    introHidden = true;
-  }
-
-  function resetGame() {
-    state.running = true;
+  function resetGameToIdle() {
+    // ✅ "시작 전" 상태: 적 스폰 X / 점수 초기화
+    state.running = false;
     state.gameOver = false;
-
     state.score = 0;
-    state.elapsedMs = 0;
 
     state.spawnTimer = 0;
-    state.spawnEvery = 720;
-
-    state.speedMin = 36;
-    state.speedMax = 110;
+    state.spawnEvery = 650;
+    state.speedMin = 44;
+    state.speedMax = 136;
 
     state.enemies.length = 0;
     state.effects.length = 0;
@@ -405,14 +404,48 @@
     state.dangerLevel = 0;
     state.camShake = { x:0, y:0, mag:0 };
 
+    state.elapsed = 0;
+
+    scoreChip.textContent = `점수: ${state.score}`;
+    hintChip.textContent = '시작하기를 눌러주세요';
+
+    overlay.style.display = 'none';
+    startOverlay.style.display = 'flex';
+
+    // 시작 전에는 BGM 정지
+    stopBgm();
+    audio.started = false;
+
+    state.lastTs = performance.now();
+  }
+
+  function startGame() {
+    state.running = true;
+    state.gameOver = false;
+
+    state.score = 0;
+    state.spawnTimer = 0;
+    state.spawnEvery = 650;
+
+    state.speedMin = 44;
+    state.speedMax = 136;
+
+    state.enemies.length = 0;
+    state.effects.length = 0;
+
+    state.dangerLevel = 0;
+    state.camShake = { x:0, y:0, mag:0 };
+
+    state.elapsed = 0;
+
     scoreChip.textContent = `점수: ${state.score}`;
     hintChip.textContent = '손가락을 터치!';
+
+    startOverlay.style.display = 'none';
     overlay.style.display = 'none';
 
-    if (introGuide) introGuide.style.display = 'flex';
-    introHidden = false;
-
-    audio.started = false;
+    // ✅ 시작 버튼이 사용자 제스처 → BGM 시작 가능
+    startBgmIfPossible();
 
     state.lastTs = performance.now();
   }
@@ -424,7 +457,7 @@
     overlay.style.display = 'flex';
     hintChip.textContent = '게임 오버';
 
-    // ✅ 게임 오버 시 BGM 정지(대표님 선택)
+    // ✅ 게임오버 시 BGM 정지
     stopBgm();
     audio.started = false;
   }
@@ -440,6 +473,7 @@
     };
   }
 
+  // ===== gameplay =====
   function spawnEnemy() {
     const w = canvas.width, h = canvas.height;
     const edge = (Math.random() * 4) | 0;
@@ -484,9 +518,6 @@
     if (!state.running) return;
     e.preventDefault();
 
-    startBgmIfPossible();
-    hideIntro();
-
     const p = getCanvasPointFromEvent(e);
 
     let hitIndex = -1;
@@ -515,16 +546,30 @@
   canvas.addEventListener('touchstart', handlePointer, { passive:false });
   canvas.addEventListener('mousedown', handlePointer);
 
-  restartBtn.addEventListener('click', () => {
-    resetGame();
-    startBgmIfPossible();
+  startBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    startGame();
   });
-  goBtn.addEventListener('click', () => { window.location.href = BOOK_URL; });
 
+  restartBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    // 다시하기 → 바로 시작 화면으로 보내지 않고 즉시 시작
+    startGame();
+  });
+
+  goBtn.addEventListener('click', () => {
+    window.location.href = BOOK_URL;
+  });
+
+  // ===== draw =====
   function drawBackground(d) {
     const w = canvas.width, h = canvas.height;
-    ctx.fillStyle = '#fff';
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
+    ctx.restore();
 
     if (d > 0.02 && state.running) {
       ctx.save();
@@ -570,8 +615,9 @@
     ctx.restore();
 
     if (assets.mouth.ok && assets.mouth.img) {
+      const img = assets.mouth.img;
       const size = r * 4.0 * scale;
-      ctx.drawImage(assets.mouth.img, cx - size/2, cy - size/2, size, size);
+      ctx.drawImage(img, cx - size/2, cy - size/2, size, size);
     } else {
       const size = r * 3.6 * scale;
       ctx.fillStyle = '#1f9dff';
@@ -596,6 +642,7 @@
     ctx.restore();
 
     if (assets.finger.ok && assets.finger.img) {
+      const img = assets.finger.img;
       const size = en.r * scale;
       const angle = Math.atan2(en.vy, en.vx);
 
@@ -614,7 +661,7 @@
       ctx.stroke();
 
       ctx.globalAlpha = 1;
-      ctx.drawImage(assets.finger.img, -size/2, -size/2, size, size);
+      ctx.drawImage(img, -size/2, -size/2, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = '#ff3d3d';
@@ -654,8 +701,8 @@
     ctx.strokeStyle = 'rgba(255,255,255,0.95)';
     ctx.fillStyle = '#111';
     const ty = ef.y + (38 * state.dpr);
-    ctx.strokeText('!Good!', ef.x, ty);
-    ctx.fillText('!Good!', ef.x, ty);
+    ctx.strokeText('Good!', ef.x, ty);
+    ctx.fillText('Good!', ef.x, ty);
 
     ctx.restore();
   }
@@ -672,8 +719,8 @@
 
     const threshold = state.nearThreshold * state.dpr;
     const mouthR = state.mouthRadius * state.dpr * 0.85;
-    const tt = (threshold - minD) / Math.max(1, (threshold - mouthR));
-    return clamp(tt, 0, 1);
+    const t = (threshold - minD) / Math.max(1, (threshold - mouthR));
+    return clamp(t, 0, 1);
   }
 
   function updateCameraShake(dt) {
@@ -696,23 +743,18 @@
   }
 
   function update(dt) {
+    state.elapsed += dt;
     state.spawnTimer += dt;
-    state.elapsedMs += dt;
 
     while (state.spawnTimer >= state.spawnEvery) {
       state.spawnTimer -= state.spawnEvery;
       spawnEnemy();
 
-      // ✅ 핵심: 최소 10초는 난이도 고정 → 이후 60초 동안 서서히 상승
-      if (state.elapsedMs >= 10000) {
-        const t = Math.min(1, (state.elapsedMs - 10000) / 60000); // 0~1
-        const spawnStep = 2 + Math.floor(6 * t); // 2~8
-        state.spawnEvery = Math.max(state.minSpawnEvery, state.spawnEvery - spawnStep);
-
-        const incMin = 0.06 + 0.18 * t; // 더 완만하게 시작
-        const incMax = 0.10 + 0.26 * t;
-        state.speedMin = Math.min(120, state.speedMin + incMin);
-        state.speedMax = Math.min(260, state.speedMax + incMax);
+      // ⏱ 10초 이후부터 서서히 난이도 상승
+      if (state.elapsed >= state.rampDelay) {
+        state.spawnEvery = Math.max(state.minSpawnEvery, state.spawnEvery - 4);
+        state.speedMin = Math.min(104, state.speedMin + 0.18);
+        state.speedMax = Math.min(208, state.speedMax + 0.28);
       }
     }
 
@@ -775,6 +817,7 @@
     console.assert(document.querySelectorAll('#goBtn').length === 1, 'goBtn should be unique');
     console.assert(document.querySelectorAll('#hintChip').length === 1, 'hintChip must be unique');
     console.assert(soundBtn instanceof HTMLButtonElement, 'soundBtn should exist');
+    console.assert(startBtn instanceof HTMLButtonElement, 'startBtn should exist');
   }
 
   async function boot() {
@@ -795,12 +838,17 @@
     if (!assets.inom.ok) missing.push('inom.png');
     if (missing.length) {
       hintChip.textContent = `이미지 미로드: ${missing.join(', ')} (도형으로 대체)`;
-      setTimeout(() => { if (!state.gameOver) hintChip.textContent = '손가락을 터치!'; }, 2200);
+      setTimeout(() => {
+        if (!state.running && !state.gameOver) hintChip.textContent = '시작하기를 눌러주세요';
+        if (state.running) hintChip.textContent = '손가락을 터치!';
+      }, 2200);
     }
 
     runSelfTests();
 
-    resetGame();
+    // ✅ 시작 전 화면
+    resetGameToIdle();
+
     requestAnimationFrame((t) => { state.lastTs = t; loop(t); });
   }
 
@@ -809,4 +857,3 @@
 </script>
 </body>
 </html>
-
