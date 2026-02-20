@@ -3,12 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <!-- 인앱 브라우저/모바일 안정성(특히 iOS) -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="format-detection" content="telephone=no" />
-
   <title>손가락 빨기 STOP! 놀이로 멈추는 게임</title>
+
   <style>
     :root{
       --ink:#1f1f1f;
@@ -16,9 +15,7 @@
       --shadow:rgba(0,0,0,0.16);
       --btn:#ff6b6b;
     }
-
     *{ box-sizing:border-box; }
-
     html,body{
       height:100%;
       margin:0;
@@ -28,7 +25,6 @@
       overscroll-behavior:none;
       touch-action:none;
     }
-
     #wrap{position:relative;height:100%;width:100%;}
     canvas{width:100vw;height:100vh;display:block;background:#ffffff;}
 
@@ -45,7 +41,6 @@
       gap:10px;
     }
     .hudRight{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
-
     .chip{
       background:rgba(255,255,255,0.78);
       border-radius:999px;
@@ -55,7 +50,6 @@
       pointer-events:none;
       white-space:nowrap;
     }
-
     .iconBtn{
       pointer-events:auto;
       border:1px solid rgba(0,0,0,0.08);
@@ -70,7 +64,6 @@
     }
     .iconBtn:active{transform:translateY(1px);}
 
-    /* ✅ 중앙 팝업(시작/게임오버 공용) */
     .overlay{
       position:absolute;
       inset:0;
@@ -84,7 +77,6 @@
         calc(18px + env(safe-area-inset-left, 0px));
       background:rgba(0,0,0,0.14);
     }
-
     .panel{
       width:min(560px,92vw);
       border-radius:22px;
@@ -94,7 +86,6 @@
       text-align:center;
       backdrop-filter:saturate(1.2) blur(2px);
     }
-
     .panel h1{margin:6px 0 10px;font-size:22px;letter-spacing:-0.4px;}
     .panel p{margin:8px 0 14px;font-size:15px;opacity:0.92;}
 
@@ -125,10 +116,10 @@
       background:linear-gradient(135deg,#ffb703 0%, #fb8500 100%);
     }
     .btn:active{transform:translateY(1px);}
-
     .sub{margin-top:10px;font-size:13px;opacity:0.75;line-height:1.4;}
   </style>
 </head>
+
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
@@ -141,7 +132,6 @@
     </div>
   </div>
 
-  <!-- ✅ 시작 화면(게임 규칙 + 시작하기) -->
   <div class="overlay" id="startOverlay" style="display:flex;">
     <div class="panel">
       <h1>손가락 빨기 STOP!</h1>
@@ -154,13 +144,39 @@
     </div>
   </div>
 
-  <!-- ✅ 게임 오버 팝업 -->
   <div class="overlay" id="overlay">
     <div class="panel">
       <h1>으~ 너무 써!</h1>
       <p id="finalScore">최종 점수: 0</p>
+
+      <!-- ✅ TOP10 점수판 -->
+      <div class="rules" id="leaderboardBox" style="margin-top:12px;">
+        <div style="font-weight:900;margin-bottom:8px;">🏆 TOP10 점수</div>
+        <div id="leaderboardList" style="display:flex;flex-direction:column;gap:6px;">
+          <div style="opacity:.7;">불러오는 중...</div>
+        </div>
+
+        <!-- ✅ Top10이면 이름 저장 -->
+        <div id="saveNameBox" style="display:none;margin-top:10px;">
+          <div style="font-weight:900;margin-bottom:6px;">🎉 TOP10 진입! 이름 저장</div>
+          <div style="display:flex;gap:8px;">
+            <input id="nameInput" maxlength="12" placeholder="이름/닉네임 (최대 12자)"
+              style="flex:1;padding:12px 12px;border-radius:12px;border:1px solid rgba(0,0,0,0.12);
+                     font-weight:800;outline:none;" />
+            <button id="saveNameBtn" type="button"
+              style="padding:12px 14px;border-radius:12px;border:0;cursor:pointer;
+                     font-weight:1000;color:#fff;background:#111;">
+              저장
+            </button>
+          </div>
+          <div style="margin-top:6px;font-size:12px;opacity:.7;">※ Top10에 들었을 때만 저장할 수 있어요</div>
+        </div>
+      </div>
+
+      <!-- ✅ 버튼은 점수판 아래 -->
       <button class="btn" id="restartBtn">다시하기</button>
       <button class="btn secondary" id="goBtn">쓴맛 동화책 보러가기</button>
+
       <div class="sub">
         손가락을 터치하면 +10점<br/>
         손가락이 입에 닿으면 Game Over
@@ -174,10 +190,9 @@
   // ✅ 스마트스토어/블로그 URL
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
 
-  // ✅ (선택) 실제 사운드 파일을 쓰려면 같은 폴더에 아래 파일을 올리세요.
-  // - bgm.mp3 (배경음악)
-  // - hit.mp3 (터치 타격음)
-  // 파일이 없으면 자동으로 "간단한 비프음"으로 대체됩니다.
+  // ✅ 점수 서버 주소(대표님 서버 OR 아래 Worker 예시 주소)
+  const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev'; // 
+  const LB_LIMIT = 10;
 
   const canvas = document.getElementById('c');
   const scoreChip = document.getElementById('scoreChip');
@@ -189,6 +204,11 @@
   const restartBtn = document.getElementById('restartBtn');
   const goBtn = document.getElementById('goBtn');
   const soundBtn = document.getElementById('soundBtn');
+
+  const leaderboardList = document.getElementById('leaderboardList');
+  const saveNameBox = document.getElementById('saveNameBox');
+  const nameInput = document.getElementById('nameInput');
+  const saveNameBtn = document.getElementById('saveNameBtn');
 
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) {
@@ -223,33 +243,117 @@
     });
   }
 
+  function escapeHtml(s='') {
+    return String(s).replace(/[&<>"']/g, (m) => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function normalizeName(raw) {
+    const n = (raw || '').trim();
+    if (!n) return '';
+    if (n.length > 12) return n.slice(0, 12);
+    return n;
+  }
+
+  function renderLeaderboard(items, myId=null) {
+    if (!leaderboardList) return;
+    if (!items || items.length === 0) {
+      leaderboardList.innerHTML = `<div style="opacity:.7;">아직 기록이 없어요</div>`;
+      return;
+    }
+
+    leaderboardList.innerHTML = items.slice(0, LB_LIMIT).map((it, idx) => {
+      const name = escapeHtml(it.name ?? '익명');
+      const score = Number(it.score ?? 0);
+      const rank = idx + 1;
+      const isMe = myId && it.id === myId;
+
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    padding:8px 10px;border-radius:12px;
+                    background:${isMe ? 'rgba(255, 235, 59, 0.35)' : 'rgba(255,255,255,0.7)'};
+                    border:1px solid rgba(0,0,0,0.05);">
+          <div style="font-weight:900;">${rank}위 · ${name}${isMe ? ' (나)' : ''}</div>
+          <div style="font-weight:1000;">${score.toLocaleString()}점</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function isTop10(score, items) {
+    if (!items) return false;
+    if (items.length < 10) return true;
+    const last = Number(items[items.length - 1]?.score ?? -Infinity);
+    // 동점도 허용하려면 >= 로 바꾸세요
+    return score > last;
+  }
+
+  // ===== server calls =====
+  let lastScoreId = null;
+  let submitting = false;
+
+  async function submitScore(score) {
+    if (submitting) return lastScoreId;
+    submitting = true;
+    lastScoreId = null;
+
+    try {
+      const res = await fetch(`${API_BASE}/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '익명', score }),
+      });
+      if (!res.ok) throw new Error('submit failed');
+      const data = await res.json();
+      lastScoreId = data.id ?? null;
+      return lastScoreId;
+    } catch (_) {
+      lastScoreId = null;
+      return null;
+    } finally {
+      submitting = false;
+    }
+  }
+
+  async function fetchLeaderboard() {
+    if (!leaderboardList) return [];
+    leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    try {
+      const res = await fetch(`${API_BASE}/leaderboard?limit=${LB_LIMIT}`, { method: 'GET' });
+      if (!res.ok) throw new Error('leaderboard fetch failed');
+      const data = await res.json();
+      const items = data.items ?? data ?? [];
+      renderLeaderboard(items, lastScoreId);
+      return items;
+    } catch (_) {
+      leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
+      return [];
+    }
+  }
+
+  async function saveName(name) {
+    if (!lastScoreId) return false;
+    try {
+      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(lastScoreId)}/name`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      return res.ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // ===== audio =====
-  const audio = {
-    enabled: true,
-    started: false,
-    bgm: null,
-    hit: null,
-    ctx: null,
-  };
+  const audio = { enabled:true, started:false, bgm:null, hit:null, ctx:null };
 
-  function setSoundUi() {
-    soundBtn.textContent = audio.enabled ? '🔊' : '🔇';
-  }
-
+  function setSoundUi(){ soundBtn.textContent = audio.enabled ? '🔊' : '🔇'; }
   function tryCreateMediaAudio() {
-    if (!audio.bgm) {
-      audio.bgm = new Audio('bgm.mp3');
-      audio.bgm.loop = true;
-      audio.bgm.volume = 0.25;
-      audio.bgm.preload = 'auto';
-    }
-    if (!audio.hit) {
-      audio.hit = new Audio('hit.mp3');
-      audio.hit.volume = 0.7;
-      audio.hit.preload = 'auto';
-    }
+    if (!audio.bgm) { audio.bgm = new Audio('bgm.mp3'); audio.bgm.loop = true; audio.bgm.volume = 0.25; audio.bgm.preload = 'auto'; }
+    if (!audio.hit) { audio.hit = new Audio('hit.mp3'); audio.hit.volume = 0.7; audio.hit.preload = 'auto'; }
   }
-
   function ensureAudioContext() {
     if (audio.ctx) return audio.ctx;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -257,49 +361,30 @@
     audio.ctx = new AC();
     return audio.ctx;
   }
-
   function beep(freq=880, dur=0.06, type='square', gain=0.12) {
     if (!audio.enabled) return;
     const ac = ensureAudioContext();
     if (!ac) return;
     if (ac.state === 'suspended') ac.resume().catch(()=>{});
-
     const t0 = ac.currentTime;
     const osc = ac.createOscillator();
     const g = ac.createGain();
-
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t0);
-
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-
-    osc.connect(g);
-    g.connect(ac.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + dur + 0.02);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
   }
-
   async function startBgmIfPossible() {
-    if (!audio.enabled) return;
-    if (audio.started) return;
-
+    if (!audio.enabled || audio.started) return;
     tryCreateMediaAudio();
     audio.started = true;
-
-    if (audio.bgm) {
-      try {
-        await audio.bgm.play();
-        return;
-      } catch (_) {}
-    }
-
+    if (audio.bgm) { try { await audio.bgm.play(); return; } catch(_) {} }
     const ac = ensureAudioContext();
     if (!ac) return;
     if (ac.state === 'suspended') { try { await ac.resume(); } catch(_){} }
-
     const pattern = [392, 523.25];
     let idx = 0;
     const tick = () => {
@@ -310,11 +395,9 @@
     };
     tick();
   }
-
   function playHitSound() {
     if (!audio.enabled) return;
     tryCreateMediaAudio();
-
     if (audio.hit) {
       try {
         const node = audio.hit.cloneNode();
@@ -325,27 +408,19 @@
     }
     beep(880, 0.06, 'square', 0.12);
   }
-
   function stopBgm() {
-    if (audio.bgm) {
-      try { audio.bgm.pause(); audio.bgm.currentTime = 0; } catch(_){}
-    }
+    if (audio.bgm) { try { audio.bgm.pause(); audio.bgm.currentTime = 0; } catch(_){ } }
   }
-
   soundBtn.addEventListener('click', (e) => {
     e.preventDefault();
     audio.enabled = !audio.enabled;
     setSoundUi();
-    if (!audio.enabled) {
-      stopBgm();
-    } else {
-      audio.started = false;
-      // 버튼 클릭도 제스처 → 즉시 재생 시도 가능
-      if (state.running) startBgmIfPossible();
-    }
+    if (!audio.enabled) { stopBgm(); }
+    else { audio.started = false; if (state.running) startBgmIfPossible(); }
   });
   setSoundUi();
 
+  // ===== assets =====
   const assets = {
     mouth: { img: null, ok: false, src: 'mouth.png' },
     finger:{ img: null, ok: false, src: 'finger.png' },
@@ -363,7 +438,6 @@
     spawnEvery: 650,
     minSpawnEvery: 240,
 
-    // ✅ 기본 속도(느리게)
     speedMin: 44,
     speedMax: 136,
 
@@ -374,7 +448,6 @@
     center: { x: 0, y: 0 },
 
     mouthRadius: 92,
-
     dangerLevel: 0,
     camShake: { x:0, y:0, mag:0 },
     nearThreshold: 190,
@@ -382,13 +455,11 @@
     hitShakeKick: 14,
     hitShakeJitter: 8,
 
-    // ⏱ 난이도 타이밍 제어
     elapsed: 0,
-    rampDelay: 10000, // 10초 뒤부터 난이도 상승
+    rampDelay: 10000,
   };
 
   function resetGameToIdle() {
-    // ✅ "시작 전" 상태: 적 스폰 X / 점수 초기화
     state.running = false;
     state.gameOver = false;
     state.score = 0;
@@ -403,7 +474,6 @@
 
     state.dangerLevel = 0;
     state.camShake = { x:0, y:0, mag:0 };
-
     state.elapsed = 0;
 
     scoreChip.textContent = `점수: ${state.score}`;
@@ -412,9 +482,13 @@
     overlay.style.display = 'none';
     startOverlay.style.display = 'flex';
 
-    // 시작 전에는 BGM 정지
     stopBgm();
     audio.started = false;
+
+    // 랭킹 영역 초기화
+    lastScoreId = null;
+    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    if (saveNameBox) saveNameBox.style.display = 'none';
 
     state.lastTs = performance.now();
   }
@@ -435,7 +509,6 @@
 
     state.dangerLevel = 0;
     state.camShake = { x:0, y:0, mag:0 };
-
     state.elapsed = 0;
 
     scoreChip.textContent = `점수: ${state.score}`;
@@ -444,22 +517,39 @@
     startOverlay.style.display = 'none';
     overlay.style.display = 'none';
 
-    // ✅ 시작 버튼이 사용자 제스처 → BGM 시작 가능
-    startBgmIfPossible();
+    // 점수/이름 저장 UI 초기화
+    lastScoreId = null;
+    if (saveNameBox) saveNameBox.style.display = 'none';
 
+    startBgmIfPossible();
     state.lastTs = performance.now();
   }
 
   function endGame() {
     state.running = false;
     state.gameOver = true;
+
     finalScoreEl.textContent = `최종 점수: ${state.score}`;
     overlay.style.display = 'flex';
     hintChip.textContent = '게임 오버';
 
-    // ✅ 게임오버 시 BGM 정지
     stopBgm();
     audio.started = false;
+
+    // ✅ 게임오버 후: 점수등록 → 리더보드 → Top10이면 이름 저장 UI
+    (async () => {
+      await submitScore(state.score);
+      const items = await fetchLeaderboard();
+
+      if (isTop10(state.score, items)) {
+        saveNameBox.style.display = 'block';
+        const saved = localStorage.getItem('bb_name') || '';
+        nameInput.value = saved;
+        nameInput.focus();
+      } else {
+        saveNameBox.style.display = 'none';
+      }
+    })();
   }
 
   function getCanvasPointFromEvent(e) {
@@ -467,13 +557,9 @@
     const touch = e.touches && e.touches[0] ? e.touches[0] : null;
     const clientX = touch ? touch.clientX : e.clientX;
     const clientY = touch ? touch.clientY : e.clientY;
-    return {
-      x: (clientX - rect.left) * state.dpr,
-      y: (clientY - rect.top) * state.dpr
-    };
+    return { x: (clientX - rect.left) * state.dpr, y: (clientY - rect.top) * state.dpr };
   }
 
-  // ===== gameplay =====
   function spawnEnemy() {
     const w = canvas.width, h = canvas.height;
     const edge = (Math.random() * 4) | 0;
@@ -497,14 +583,8 @@
     state.enemies.push({ x, y, vx, vy, r, alive:true });
   }
 
-  function addEffect(x, y) {
-    state.effects.push({ x, y, ttl: 500, total: 500 });
-  }
-
-  function hitTestCircle(px, py, cx, cy, r) {
-    const dx = px - cx, dy = py - cy;
-    return (dx*dx + dy*dy) <= r*r;
-  }
+  function addEffect(x, y) { state.effects.push({ x, y, ttl: 500, total: 500 }); }
+  function hitTestCircle(px, py, cx, cy, r) { const dx = px - cx, dy = py - cy; return (dx*dx + dy*dy) <= r*r; }
 
   function applyHitShake() {
     const kick = state.hitShakeKick * state.dpr;
@@ -524,10 +604,7 @@
     for (let i = state.enemies.length - 1; i >= 0; i--) {
       const en = state.enemies[i];
       if (!en.alive) continue;
-      if (hitTestCircle(p.x, p.y, en.x, en.y, en.r * 1.25)) {
-        hitIndex = i;
-        break;
-      }
+      if (hitTestCircle(p.x, p.y, en.x, en.y, en.r * 1.25)) { hitIndex = i; break; }
     }
 
     if (hitIndex >= 0) {
@@ -536,7 +613,6 @@
       addEffect(en.x, en.y);
       applyHitShake();
       playHitSound();
-
       state.score += 10;
       scoreChip.textContent = `점수: ${state.score}`;
       hintChip.textContent = '잘했어!';
@@ -546,19 +622,27 @@
   canvas.addEventListener('touchstart', handlePointer, { passive:false });
   canvas.addEventListener('mousedown', handlePointer);
 
-  startBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    startGame();
-  });
+  startBtn.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
+  restartBtn.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
+  goBtn.addEventListener('click', () => { window.location.href = BOOK_URL; });
 
-  restartBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    // 다시하기 → 바로 시작 화면으로 보내지 않고 즉시 시작
-    startGame();
-  });
+  // ✅ Top10 이름 저장 버튼
+  saveNameBtn.addEventListener('click', async () => {
+    const name = normalizeName(nameInput.value);
+    if (!name) return;
 
-  goBtn.addEventListener('click', () => {
-    window.location.href = BOOK_URL;
+    saveNameBtn.textContent = '저장중...';
+    saveNameBtn.disabled = true;
+
+    const ok = await saveName(name);
+    if (ok) {
+      localStorage.setItem('bb_name', name);
+      await fetchLeaderboard();
+      saveNameBox.style.display = 'none';
+    } else {
+      saveNameBtn.textContent = '저장';
+      saveNameBtn.disabled = false;
+    }
   });
 
   // ===== draw =====
@@ -576,24 +660,13 @@
       ctx.globalAlpha = 0.06 * d;
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, w, h);
-      ctx.globalCompositeOperation = 'destination-out';
-      const rg = ctx.createRadialGradient(
-        state.center.x, state.center.y, 140*state.dpr,
-        state.center.x, state.center.y, 650*state.dpr
-      );
-      rg.addColorStop(0, 'rgba(0,0,0,0)');
-      rg.addColorStop(1, 'rgba(0,0,0,1)');
-      ctx.fillStyle = rg;
-      ctx.fillRect(0, 0, w, h);
       ctx.restore();
-      ctx.globalCompositeOperation = 'source-over';
     }
   }
 
   function drawMouthAt(cx, cy, scaleMul) {
     const r = state.mouthRadius * state.dpr;
     const scale = scaleMul || 1;
-
     const plateR = r * 1.25 * scale;
 
     ctx.save();
@@ -622,44 +695,18 @@
       const size = r * 3.6 * scale;
       ctx.fillStyle = '#1f9dff';
       ctx.fillRect(cx - size/2, cy - size/2, size, size);
-      ctx.strokeStyle = '#003a66';
-      ctx.lineWidth = Math.max(3, 3 * state.dpr);
-      ctx.beginPath();
-      ctx.arc(cx, cy + size*0.15, size*0.28, 0, Math.PI, false);
-      ctx.stroke();
     }
   }
 
   function drawFinger(en) {
     const scale = 3.4;
-
-    ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.ellipse(en.x + 6*state.dpr, en.y + 8*state.dpr, en.r*1.05, en.r*0.9, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-
     if (assets.finger.ok && assets.finger.img) {
       const img = assets.finger.img;
       const size = en.r * scale;
       const angle = Math.atan2(en.vy, en.vx);
-
       ctx.save();
       ctx.translate(en.x, en.y);
       ctx.rotate(angle);
-
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = '#fff7e6';
-      ctx.beginPath();
-      ctx.arc(0, 0, (size*0.42), 0, Math.PI*2);
-      ctx.fill();
-      ctx.globalAlpha = 0.45;
-      ctx.strokeStyle = 'rgba(255,183,3,0.45)';
-      ctx.lineWidth = Math.max(2, 2*state.dpr);
-      ctx.stroke();
-
       ctx.globalAlpha = 1;
       ctx.drawImage(img, -size/2, -size/2, size, size);
       ctx.restore();
@@ -668,42 +715,23 @@
       ctx.beginPath();
       ctx.arc(en.x, en.y, en.r*1.25, 0, Math.PI*2);
       ctx.fill();
-
-      ctx.strokeStyle = 'rgba(255,183,3,0.55)';
-      ctx.lineWidth = Math.max(3, 3*state.dpr);
-      ctx.stroke();
     }
   }
 
   function drawEffect(ef) {
     const t = ef.ttl / ef.total;
     const alpha = clamp(t, 0, 1);
-    const pop = 1.0 + (1 - t) * 0.15;
-
     ctx.save();
     ctx.globalAlpha = alpha;
-
-    const base = 56 * state.dpr * pop;
-
+    const base = 56 * state.dpr * (1 + (1-t)*0.15);
     if (assets.inom.ok && assets.inom.img) {
       ctx.drawImage(assets.inom.img, ef.x - base/2, ef.y - base/2, base, base);
     } else {
       ctx.fillStyle = '#111';
       ctx.beginPath();
-      ctx.arc(ef.x, ef.y, 16*state.dpr*pop, 0, Math.PI*2);
+      ctx.arc(ef.x, ef.y, 16*state.dpr, 0, Math.PI*2);
       ctx.fill();
     }
-
-    ctx.font = `${Math.floor(22 * state.dpr)}px system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = Math.max(4, 4 * state.dpr);
-    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-    ctx.fillStyle = '#111';
-    const ty = ef.y + (38 * state.dpr);
-    ctx.strokeText('Good!', ef.x, ty);
-    ctx.fillText('Good!', ef.x, ty);
-
     ctx.restore();
   }
 
@@ -716,7 +744,6 @@
       if (d < minD) minD = d;
     }
     if (!isFinite(minD)) return 0;
-
     const threshold = state.nearThreshold * state.dpr;
     const mouthR = state.mouthRadius * state.dpr * 0.85;
     const t = (threshold - minD) / Math.max(1, (threshold - mouthR));
@@ -726,20 +753,12 @@
   function updateCameraShake(dt) {
     const d = state.dangerLevel;
     const baseMag = (3 + 20 * d * d) * state.dpr;
-
     state.camShake.mag = lerp(state.camShake.mag, baseMag, 0.10);
-
     const jitter = (0.6 + 1.6 * d) * (dt / 16.67);
     state.camShake.x = lerp(state.camShake.x, (Math.random() - 0.5) * state.camShake.mag, 0.22 * jitter);
     state.camShake.y = lerp(state.camShake.y, (Math.random() - 0.5) * state.camShake.mag, 0.22 * jitter);
-
-    if (d < 0.02) {
-      state.camShake.x *= 0.86;
-      state.camShake.y *= 0.86;
-      state.camShake.mag *= 0.92;
-    } else {
-      state.camShake.mag *= 0.985;
-    }
+    if (d < 0.02) { state.camShake.x *= 0.86; state.camShake.y *= 0.86; state.camShake.mag *= 0.92; }
+    else { state.camShake.mag *= 0.985; }
   }
 
   function update(dt) {
@@ -749,8 +768,6 @@
     while (state.spawnTimer >= state.spawnEvery) {
       state.spawnTimer -= state.spawnEvery;
       spawnEnemy();
-
-      // ⏱ 10초 이후부터 서서히 난이도 상승
       if (state.elapsed >= state.rampDelay) {
         state.spawnEvery = Math.max(state.minSpawnEvery, state.spawnEvery - 4);
         state.speedMin = Math.min(104, state.speedMin + 0.18);
@@ -763,7 +780,6 @@
       en.x += en.vx * (dt / 1000);
       en.y += en.vy * (dt / 1000);
     }
-
     for (const ef of state.effects) ef.ttl -= dt;
 
     state.enemies = state.enemies.filter(en => en.alive);
@@ -794,7 +810,6 @@
     ctx.translate(state.camShake.x, state.camShake.y);
 
     drawBackground(state.dangerLevel);
-
     const mouthScale = 1.0 + 0.72 * (state.dangerLevel ** 1.6);
     drawMouthAt(state.center.x, state.center.y, mouthScale);
 
@@ -812,17 +827,8 @@
     requestAnimationFrame(loop);
   }
 
-  function runSelfTests() {
-    console.assert(document.getElementById('c') instanceof HTMLCanvasElement, 'Canvas element should exist');
-    console.assert(document.querySelectorAll('#goBtn').length === 1, 'goBtn should be unique');
-    console.assert(document.querySelectorAll('#hintChip').length === 1, 'hintChip must be unique');
-    console.assert(soundBtn instanceof HTMLButtonElement, 'soundBtn should exist');
-    console.assert(startBtn instanceof HTMLButtonElement, 'startBtn should exist');
-  }
-
   async function boot() {
     resize();
-
     const [m, f, i] = await Promise.all([
       loadImg(assets.mouth.src),
       loadImg(assets.finger.src),
@@ -832,23 +838,7 @@
     assets.finger.img = f.img; assets.finger.ok = f.ok;
     assets.inom.img = i.img; assets.inom.ok = i.ok;
 
-    const missing = [];
-    if (!assets.mouth.ok) missing.push('mouth.png');
-    if (!assets.finger.ok) missing.push('finger.png');
-    if (!assets.inom.ok) missing.push('inom.png');
-    if (missing.length) {
-      hintChip.textContent = `이미지 미로드: ${missing.join(', ')} (도형으로 대체)`;
-      setTimeout(() => {
-        if (!state.running && !state.gameOver) hintChip.textContent = '시작하기를 눌러주세요';
-        if (state.running) hintChip.textContent = '손가락을 터치!';
-      }, 2200);
-    }
-
-    runSelfTests();
-
-    // ✅ 시작 전 화면
     resetGameToIdle();
-
     requestAnimationFrame((t) => { state.lastTs = t; loop(t); });
   }
 
@@ -857,4 +847,3 @@
 </script>
 </body>
 </html>
-
