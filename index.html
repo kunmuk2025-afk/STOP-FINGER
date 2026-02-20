@@ -41,7 +41,6 @@
       gap:10px;
     }
     .hudRight{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
-
     .chip{
       background:rgba(255,255,255,0.78);
       border-radius:999px;
@@ -51,7 +50,6 @@
       pointer-events:none;
       white-space:nowrap;
     }
-
     .iconBtn{
       pointer-events:auto;
       border:1px solid rgba(0,0,0,0.08);
@@ -79,7 +77,6 @@
         calc(18px + env(safe-area-inset-left, 0px));
       background:rgba(0,0,0,0.14);
     }
-
     .panel{
       width:min(560px,92vw);
       border-radius:22px;
@@ -89,7 +86,6 @@
       text-align:center;
       backdrop-filter:saturate(1.2) blur(2px);
     }
-
     .panel h1{margin:6px 0 10px;font-size:22px;letter-spacing:-0.4px;}
     .panel p{margin:8px 0 14px;font-size:15px;opacity:0.92;}
 
@@ -120,7 +116,6 @@
       background:linear-gradient(135deg,#ffb703 0%, #fb8500 100%);
     }
     .btn:active{transform:translateY(1px);}
-
     .sub{margin-top:10px;font-size:13px;opacity:0.75;line-height:1.4;}
   </style>
 </head>
@@ -140,7 +135,7 @@
   <div class="overlay" id="startOverlay" style="display:flex;">
     <div class="panel">
       <h1>손가락 빨기 STOP!</h1>
-      <div class="rules">
+      <div class="rules" id="rulesBox">
         <div>• <b>방법</b>: 손가락이 <b>입</b>에 닿기 전에 막아주세요.</div>
         <div>• <b>조작</b>: 날아오는 손을 <b>터치</b>하면 사라져요.</div>
       </div>
@@ -154,14 +149,14 @@
       <h1>으~ 너무 써!</h1>
       <p id="finalScore">최종 점수: 0</p>
 
-      <!-- TOP10 점수판 -->
+      <!-- ✅ TOP10 점수판 -->
       <div class="rules" id="leaderboardBox" style="margin-top:12px;">
         <div style="font-weight:900;margin-bottom:8px;">🏆 TOP10 점수</div>
         <div id="leaderboardList" style="display:flex;flex-direction:column;gap:6px;">
           <div style="opacity:.7;">불러오는 중...</div>
         </div>
 
-        <!-- Top10이면 이름 저장 -->
+        <!-- ✅ Top10이면 이름 저장 -->
         <div id="saveNameBox" style="display:none;margin-top:10px;">
           <div style="font-weight:900;margin-bottom:6px;">🎉 TOP10 진입! 이름 저장</div>
           <div style="display:flex;gap:8px;">
@@ -174,10 +169,11 @@
               저장
             </button>
           </div>
-          <div style="margin-top:6px;font-size:12px;opacity:.7;">※ Top10(동점 포함)에 들었을 때만 저장할 수 있어요</div>
+          <div style="margin-top:6px;font-size:12px;opacity:.7;">※ Top10에 들었을 때만 저장할 수 있어요</div>
         </div>
       </div>
 
+      <!-- ✅ 버튼은 점수판 아래 -->
       <button class="btn" id="restartBtn">다시하기</button>
       <button class="btn secondary" id="goBtn">쓴맛 동화책 보러가기</button>
 
@@ -191,9 +187,10 @@
 
 <script>
 (() => {
+  // ✅ 스마트스토어/블로그 URL
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
 
-  // ✅ 대표님 Worker 주소(현재 사용 중)
+  // ✅ 점수 서버 주소
   const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev';
   const LB_LIMIT = 10;
 
@@ -220,6 +217,7 @@
     return;
   }
 
+  // ===== util =====
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp = (a,b,t)=>a+(b-a)*t;
   const rand = (a,b)=>a+Math.random()*(b-a);
@@ -228,7 +226,8 @@
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
     const w = Math.floor(window.innerWidth * dpr);
     const h = Math.floor(window.innerHeight * dpr);
-    canvas.width = w; canvas.height = h;
+    canvas.width = w;
+    canvas.height = h;
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
     state.dpr = dpr;
@@ -268,6 +267,7 @@
       const score = Number(it.score ?? 0);
       const rank = idx + 1;
       const isMe = myId && it.id === myId;
+
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;
                     padding:8px 10px;border-radius:12px;
@@ -289,40 +289,35 @@
   }
 
   // ===== server calls =====
-  let currentScoreId = null;
+  let lastScoreId = null;
+  let submitting = false;
 
-  async function fetchWithTimeout(url, options={}, timeoutMs=6000) {
-    const ac = new AbortController();
-    const t = setTimeout(() => ac.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { ...options, signal: ac.signal });
-      return res;
-    } finally {
-      clearTimeout(t);
-    }
-  }
+  // ✅ 이름 저장 중복/버튼 고정 방지
+  let savingName = false;
+
+  // ✅ endGame 비동기 레이스 방지 (다시하기 눌러도 이전 요청이 UI 덮치지 않게)
+  let endGameRunId = 0;
 
   async function submitScore(score) {
-    currentScoreId = null;
+    if (submitting) return lastScoreId;
+    submitting = true;
+    lastScoreId = null;
+
     try {
-      const res = await fetchWithTimeout(`${API_BASE}/score?t=${Date.now()}`, {
+      const res = await fetch(`${API_BASE}/score`, {
         method: 'POST',
-        mode: 'cors',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', 'Accept':'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: '익명', score }),
-      }, 6000);
-
-      const raw = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${raw.slice(0,120)}`);
-
-      const data = JSON.parse(raw);
-      currentScoreId = data.id ?? null;
-      return currentScoreId;
-
+      });
+      if (!res.ok) throw new Error('submit failed');
+      const data = await res.json();
+      lastScoreId = data.id ?? null;
+      return lastScoreId;
     } catch (_) {
-      currentScoreId = null;
+      lastScoreId = null;
       return null;
+    } finally {
+      submitting = false;
     }
   }
 
@@ -330,47 +325,26 @@
     if (!leaderboardList) return [];
     leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
     try {
-      const res = await fetchWithTimeout(`${API_BASE}/leaderboard?limit=${LB_LIMIT}&t=${Date.now()}`, {
-        method: 'GET',
-        mode: 'cors',
-        cache: 'no-store',
-        headers: { 'Accept':'application/json', 'Cache-Control':'no-cache', 'Pragma':'no-cache' },
-      }, 6000);
-
-      const raw = await res.text();
-      if (!res.ok) {
-        leaderboardList.innerHTML = `<div style="opacity:.7;">점수판 오류: HTTP ${res.status}<br/>${escapeHtml(raw.slice(0,180))}</div>`;
-        return [];
-      }
-
-      let data;
-      try { data = JSON.parse(raw); }
-      catch {
-        leaderboardList.innerHTML = `<div style="opacity:.7;">점수판 오류: JSON 파싱 실패<br/>${escapeHtml(raw.slice(0,180))}</div>`;
-        return [];
-      }
-
+      const res = await fetch(`${API_BASE}/leaderboard?limit=${LB_LIMIT}`, { method: 'GET' });
+      if (!res.ok) throw new Error('leaderboard fetch failed');
+      const data = await res.json();
       const items = data.items ?? data ?? [];
-      renderLeaderboard(items, currentScoreId);
+      renderLeaderboard(items, lastScoreId);
       return items;
-
-    } catch (e) {
-      const msg = (e && e.name === 'AbortError') ? '타임아웃(6초)' : String(e?.message || e);
-      leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요<br/>${escapeHtml(msg)}</div>`;
+    } catch (_) {
+      leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
       return [];
     }
   }
 
   async function saveName(name) {
-    if (!currentScoreId) return false;
+    if (!lastScoreId) return false;
     try {
-      const res = await fetchWithTimeout(`${API_BASE}/score/${encodeURIComponent(currentScoreId)}/name?t=${Date.now()}`, {
+      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(lastScoreId)}/name`, {
         method: 'POST',
-        mode: 'cors',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', 'Accept':'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
-      }, 6000);
+      });
       return res.ok;
     } catch (_) {
       return false;
@@ -379,6 +353,7 @@
 
   // ===== audio =====
   const audio = { enabled:true, started:false, bgm:null, hit:null, ctx:null };
+
   function setSoundUi(){ soundBtn.textContent = audio.enabled ? '🔊' : '🔇'; }
   function tryCreateMediaAudio() {
     if (!audio.bgm) { audio.bgm = new Audio('bgm.mp3'); audio.bgm.loop = true; audio.bgm.volume = 0.25; audio.bgm.preload = 'auto'; }
@@ -489,6 +464,17 @@
     rampDelay: 10000,
   };
 
+  function resetLeaderboardUI() {
+    lastScoreId = null;
+    submitting = false;
+    savingName = false;
+
+    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    if (saveNameBox) saveNameBox.style.display = 'none';
+    if (saveNameBtn) { saveNameBtn.textContent = '저장'; saveNameBtn.disabled = false; }
+    if (nameInput) nameInput.value = localStorage.getItem('bb_name') || '';
+  }
+
   function resetGameToIdle() {
     state.running = false;
     state.gameOver = false;
@@ -515,11 +501,15 @@
     stopBgm();
     audio.started = false;
 
-    currentScoreId = null;
-    if (saveNameBox) saveNameBox.style.display = 'none';
+    resetLeaderboardUI();
+
+    state.lastTs = performance.now();
   }
 
   function startGame() {
+    // ✅ 이전 endGame 비동기 무효화
+    endGameRunId++;
+
     state.running = true;
     state.gameOver = false;
 
@@ -543,8 +533,8 @@
     startOverlay.style.display = 'none';
     overlay.style.display = 'none';
 
-    currentScoreId = null;
-    if (saveNameBox) saveNameBox.style.display = 'none';
+    // ✅ 점수/이름 저장 UI 상태 리셋 (저장중 고정 방지)
+    resetLeaderboardUI();
 
     startBgmIfPossible();
     state.lastTs = performance.now();
@@ -561,12 +551,26 @@
     stopBgm();
     audio.started = false;
 
-    (async () => {
-      await submitScore(state.score);
-      const items = await fetchLeaderboard();
+    // ✅ 이번 endGame 실행 ID
+    const runId = ++endGameRunId;
+    const myScore = state.score;
 
-      if (isTop10(state.score, items)) {
+    // ✅ 게임오버 후: 점수등록 → 리더보드 → Top10이면 이름 저장 UI
+    (async () => {
+      await submitScore(myScore);
+      if (runId !== endGameRunId) return;
+
+      const items = await fetchLeaderboard();
+      if (runId !== endGameRunId) return;
+
+      if (isTop10(myScore, items)) {
         saveNameBox.style.display = 'block';
+
+        // ✅ 버튼 상태 강제 초기화 (저장중 고정 방지)
+        savingName = false;
+        saveNameBtn.textContent = '저장';
+        saveNameBtn.disabled = false;
+
         const saved = localStorage.getItem('bb_name') || '';
         nameInput.value = saved;
         nameInput.focus();
@@ -637,7 +641,6 @@
       addEffect(en.x, en.y);
       applyHitShake();
       playHitSound();
-
       state.score += 10;
       scoreChip.textContent = `점수: ${state.score}`;
       hintChip.textContent = '잘했어!';
@@ -651,22 +654,29 @@
   restartBtn.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
   goBtn.addEventListener('click', () => { window.location.href = BOOK_URL; });
 
+  // ✅ Top10 이름 저장 버튼 (저장중 고정/중복 클릭 방지)
   saveNameBtn.addEventListener('click', async () => {
     const name = normalizeName(nameInput.value);
     if (!name) return;
+    if (savingName) return;
 
+    savingName = true;
     saveNameBtn.textContent = '저장중...';
     saveNameBtn.disabled = true;
 
-    const ok = await saveName(name);
-    if (ok) {
-      localStorage.setItem('bb_name', name);
-      await fetchLeaderboard();
-      saveNameBox.style.display = 'none';
-    } else {
+    try {
+      const ok = await saveName(name);
+      if (ok) {
+        localStorage.setItem('bb_name', name);
+        await fetchLeaderboard();
+        saveNameBox.style.display = 'none';
+      } else {
+        alert('저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      savingName = false;
       saveNameBtn.textContent = '저장';
       saveNameBtn.disabled = false;
-      alert('저장 실패. 잠시 후 다시 시도해주세요.');
     }
   });
 
@@ -674,6 +684,7 @@
   function drawBackground(d) {
     const w = canvas.width, h = canvas.height;
     ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
@@ -731,6 +742,7 @@
       ctx.save();
       ctx.translate(en.x, en.y);
       ctx.rotate(angle);
+      ctx.globalAlpha = 1;
       ctx.drawImage(img, -size/2, -size/2, size, size);
       ctx.restore();
     } else {
@@ -817,6 +829,8 @@
       const rr = en.r + mouthR;
       const dx = en.x - cx, dy = en.y - cy;
       if ((dx*dx + dy*dy) <= rr*rr) {
+        state.dangerLevel = 1;
+        state.camShake.mag = Math.max(state.camShake.mag, 26 * state.dpr);
         endGame();
         break;
       }
@@ -850,7 +864,6 @@
 
   async function boot() {
     resize();
-
     const [m, f, i] = await Promise.all([
       loadImg(assets.mouth.src),
       loadImg(assets.finger.src),
