@@ -187,10 +187,7 @@
 
 <script>
 (() => {
-  // ✅ 스마트스토어/블로그 URL
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
-
-  // ✅ 점수 서버 주소
   const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev';
   const LB_LIMIT = 10;
 
@@ -280,7 +277,7 @@
     }).join('');
   }
 
-  // ✅ 동점도 Top10 인정 (>=)
+  // ✅ 동점도 Top10 인정
   function isTop10(score, items) {
     if (!items) return false;
     if (items.length < 10) return true;
@@ -288,20 +285,19 @@
     return score >= last;
   }
 
-  // ===== server calls =====
-  let lastScoreId = null;
-  let submitting = false;
+  // ===== server calls (레이스 제거 버전) =====
+  // ✅ 이번 게임의 점수 ID는 currentScoreId로만 관리
+  let currentScoreId = null;
 
-  // ✅ 이름 저장 중복/버튼 고정 방지
+  // ✅ submit 요청이 늦게 끝나도 이전 결과가 currentScoreId를 덮어쓰지 않도록 토큰 사용
+  let submitToken = 0;
+
+  // ✅ 이름 저장 중복 클릭 방지
   let savingName = false;
 
-  // ✅ endGame 비동기 레이스 방지 (다시하기 눌러도 이전 요청이 UI 덮치지 않게)
-  let endGameRunId = 0;
-
   async function submitScore(score) {
-    if (submitting) return lastScoreId;
-    submitting = true;
-    lastScoreId = null;
+    const token = ++submitToken;
+    currentScoreId = null;
 
     try {
       const res = await fetch(`${API_BASE}/score`, {
@@ -311,13 +307,14 @@
       });
       if (!res.ok) throw new Error('submit failed');
       const data = await res.json();
-      lastScoreId = data.id ?? null;
-      return lastScoreId;
+      // ✅ 가장 최신 submit만 유효
+      if (token === submitToken) {
+        currentScoreId = data.id ?? null;
+      }
+      return currentScoreId;
     } catch (_) {
-      lastScoreId = null;
+      if (token === submitToken) currentScoreId = null;
       return null;
-    } finally {
-      submitting = false;
     }
   }
 
@@ -329,7 +326,7 @@
       if (!res.ok) throw new Error('leaderboard fetch failed');
       const data = await res.json();
       const items = data.items ?? data ?? [];
-      renderLeaderboard(items, lastScoreId);
+      renderLeaderboard(items, currentScoreId);
       return items;
     } catch (_) {
       leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
@@ -338,9 +335,9 @@
   }
 
   async function saveName(name) {
-    if (!lastScoreId) return false;
+    if (!currentScoreId) return false;
     try {
-      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(lastScoreId)}/name`, {
+      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(currentScoreId)}/name`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
@@ -349,6 +346,19 @@
     } catch (_) {
       return false;
     }
+  }
+
+  function resetLeaderboardUI() {
+    // ✅ 새 게임 시작 시, 이전 submit 결과가 덮어쓰지 못하게 토큰 증가
+    submitToken++;
+
+    currentScoreId = null;
+    savingName = false;
+
+    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    if (saveNameBox) saveNameBox.style.display = 'none';
+    if (saveNameBtn) { saveNameBtn.textContent = '저장'; saveNameBtn.disabled = false; }
+    if (nameInput) nameInput.value = localStorage.getItem('bb_name') || '';
   }
 
   // ===== audio =====
@@ -464,17 +474,6 @@
     rampDelay: 10000,
   };
 
-  function resetLeaderboardUI() {
-    lastScoreId = null;
-    submitting = false;
-    savingName = false;
-
-    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
-    if (saveNameBox) saveNameBox.style.display = 'none';
-    if (saveNameBtn) { saveNameBtn.textContent = '저장'; saveNameBtn.disabled = false; }
-    if (nameInput) nameInput.value = localStorage.getItem('bb_name') || '';
-  }
-
   function resetGameToIdle() {
     state.running = false;
     state.gameOver = false;
@@ -507,9 +506,6 @@
   }
 
   function startGame() {
-    // ✅ 이전 endGame 비동기 무효화
-    endGameRunId++;
-
     state.running = true;
     state.gameOver = false;
 
@@ -533,7 +529,6 @@
     startOverlay.style.display = 'none';
     overlay.style.display = 'none';
 
-    // ✅ 점수/이름 저장 UI 상태 리셋 (저장중 고정 방지)
     resetLeaderboardUI();
 
     startBgmIfPossible();
@@ -551,22 +546,21 @@
     stopBgm();
     audio.started = false;
 
-    // ✅ 이번 endGame 실행 ID
-    const runId = ++endGameRunId;
     const myScore = state.score;
+    const localToken = ++submitToken; // ✅ 이번 게임 토큰(이후 결과가 뒤집히면 무시)
 
-    // ✅ 게임오버 후: 점수등록 → 리더보드 → Top10이면 이름 저장 UI
     (async () => {
+      // 점수 등록(최신 토큰만 currentScoreId 세팅됨)
       await submitScore(myScore);
-      if (runId !== endGameRunId) return;
+      if (localToken !== submitToken) return;
 
       const items = await fetchLeaderboard();
-      if (runId !== endGameRunId) return;
+      if (localToken !== submitToken) return;
 
       if (isTop10(myScore, items)) {
         saveNameBox.style.display = 'block';
 
-        // ✅ 버튼 상태 강제 초기화 (저장중 고정 방지)
+        // 버튼 상태 초기화
         savingName = false;
         saveNameBtn.textContent = '저장';
         saveNameBtn.disabled = false;
@@ -654,7 +648,7 @@
   restartBtn.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
   goBtn.addEventListener('click', () => { window.location.href = BOOK_URL; });
 
-  // ✅ Top10 이름 저장 버튼 (저장중 고정/중복 클릭 방지)
+  // ✅ Top10 이름 저장 버튼
   saveNameBtn.addEventListener('click', async () => {
     const name = normalizeName(nameInput.value);
     if (!name) return;
