@@ -7,114 +7,54 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="format-detection" content="telephone=no" />
   <title>손가락 빨기 STOP! 놀이로 멈추는 게임</title>
-
   <style>
-    :root{
-      --ink:#1f1f1f;
-      --panel:rgba(255,255,255,0.92);
-      --shadow:rgba(0,0,0,0.16);
-      --btn:#ff6b6b;
-    }
+    :root{ --ink:#1f1f1f; --panel:rgba(255,255,255,0.92); --shadow:rgba(0,0,0,0.16); --btn:#ff6b6b; }
     *{ box-sizing:border-box; }
-    html,body{
-      height:100%;
-      margin:0;
-      background:#ffffff;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Arial,sans-serif;
-      color:var(--ink);
-      overscroll-behavior:none;
-      touch-action:none;
-    }
+    html,body{ height:100%; margin:0; background:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",Arial,sans-serif;
+      color:var(--ink); overscroll-behavior:none; touch-action:none; }
     #wrap{position:relative;height:100%;width:100%;}
     canvas{width:100vw;height:100vh;display:block;background:#ffffff;}
 
     .hud{
-      position:absolute;
-      top: env(safe-area-inset-top, 0px);
-      left: env(safe-area-inset-left, 0px);
-      right: env(safe-area-inset-right, 0px);
-      padding:10px 14px;
-      display:flex;justify-content:space-between;align-items:center;
-      pointer-events:none;user-select:none;
-      font-weight:1000;letter-spacing:-0.2px;
-      text-shadow:0 1px 0 rgba(255,255,255,0.8);
-      gap:10px;
+      position:absolute; top: env(safe-area-inset-top, 0px); left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px);
+      padding:10px 14px; display:flex;justify-content:space-between;align-items:center; pointer-events:none;user-select:none;
+      font-weight:1000;letter-spacing:-0.2px; text-shadow:0 1px 0 rgba(255,255,255,0.8); gap:10px;
     }
     .hudRight{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
     .chip{
-      background:rgba(255,255,255,0.78);
-      border-radius:999px;
-      padding:8px 12px;
-      box-shadow:0 6px 16px var(--shadow);
-      border:1px solid rgba(0,0,0,0.06);
-      pointer-events:none;
-      white-space:nowrap;
+      background:rgba(255,255,255,0.78); border-radius:999px; padding:8px 12px; box-shadow:0 6px 16px var(--shadow);
+      border:1px solid rgba(0,0,0,0.06); pointer-events:none; white-space:nowrap;
     }
     .iconBtn{
-      pointer-events:auto;
-      border:1px solid rgba(0,0,0,0.08);
-      background:rgba(255,255,255,0.78);
-      border-radius:999px;
-      padding:8px 10px;
-      box-shadow:0 6px 16px var(--shadow);
-      font-weight:900;
-      cursor:pointer;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
+      pointer-events:auto; border:1px solid rgba(0,0,0,0.08); background:rgba(255,255,255,0.78); border-radius:999px; padding:8px 10px;
+      box-shadow:0 6px 16px var(--shadow); font-weight:900; cursor:pointer; user-select:none; -webkit-tap-highlight-color: transparent;
     }
     .iconBtn:active{transform:translateY(1px);}
 
     .overlay{
-      position:absolute;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding:
-        calc(18px + env(safe-area-inset-top, 0px))
-        calc(18px + env(safe-area-inset-right, 0px))
-        calc(18px + env(safe-area-inset-bottom, 0px))
-        calc(18px + env(safe-area-inset-left, 0px));
+      position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+      padding: calc(18px + env(safe-area-inset-top, 0px)) calc(18px + env(safe-area-inset-right, 0px))
+               calc(18px + env(safe-area-inset-bottom, 0px)) calc(18px + env(safe-area-inset-left, 0px));
       background:rgba(0,0,0,0.14);
     }
     .panel{
-      width:min(560px,92vw);
-      border-radius:22px;
-      background:var(--panel);
-      box-shadow:0 18px 40px var(--shadow);
-      padding:18px 16px 16px;
-      text-align:center;
-      backdrop-filter:saturate(1.2) blur(2px);
+      width:min(560px,92vw); border-radius:22px; background:var(--panel); box-shadow:0 18px 40px var(--shadow);
+      padding:18px 16px 16px; text-align:center; backdrop-filter:saturate(1.2) blur(2px);
     }
     .panel h1{margin:6px 0 10px;font-size:22px;letter-spacing:-0.4px;}
     .panel p{margin:8px 0 14px;font-size:15px;opacity:0.92;}
 
     .rules{
-      text-align:left;
-      margin:10px 0 14px;
-      padding:12px 12px;
-      border-radius:14px;
-      background:rgba(255,255,255,0.75);
-      border:1px solid rgba(0,0,0,0.06);
-      box-shadow:0 8px 18px rgba(0,0,0,0.06);
-      font-size:14px;
-      line-height:1.55;
+      text-align:left; margin:10px 0 14px; padding:12px 12px; border-radius:14px; background:rgba(255,255,255,0.75);
+      border:1px solid rgba(0,0,0,0.06); box-shadow:0 8px 18px rgba(0,0,0,0.06); font-size:14px; line-height:1.55;
     }
     .rules b{font-weight:900;}
 
     .btn{
-      appearance:none;border:0;border-radius:16px;
-      padding:14px 16px;width:100%;
-      font-size:18px;font-weight:1000;
-      cursor:pointer;
-      box-shadow:0 12px 24px var(--shadow);
-      color:#fff;
-      background:linear-gradient(135deg,var(--btn) 0%, #ff3d3d 100%);
+      appearance:none;border:0;border-radius:16px; padding:14px 16px;width:100%; font-size:18px;font-weight:1000; cursor:pointer;
+      box-shadow:0 12px 24px var(--shadow); color:#fff; background:linear-gradient(135deg,var(--btn) 0%, #ff3d3d 100%);
     }
-    .btn.secondary{
-      margin-top:10px;
-      background:linear-gradient(135deg,#ffb703 0%, #fb8500 100%);
-    }
+    .btn.secondary{ margin-top:10px; background:linear-gradient(135deg,#ffb703 0%, #fb8500 100%); }
     .btn:active{transform:translateY(1px);}
     .sub{margin-top:10px;font-size:13px;opacity:0.75;line-height:1.4;}
   </style>
@@ -135,10 +75,21 @@
   <div class="overlay" id="startOverlay" style="display:flex;">
     <div class="panel">
       <h1>손가락 빨기 STOP!</h1>
-      <div class="rules" id="rulesBox">
+      <div class="rules">
         <div>• <b>방법</b>: 손가락이 <b>입</b>에 닿기 전에 막아주세요.</div>
         <div>• <b>조작</b>: 날아오는 손을 <b>터치</b>하면 사라져요.</div>
       </div>
+
+      <div class="rules" style="margin-top:10px;">
+        <div style="font-weight:900;margin-bottom:8px;">🏆 TOP10 점수 (테스트)</div>
+        <div id="leaderboardListStart" style="display:flex;flex-direction:column;gap:6px;">
+          <div style="opacity:.7;">불러오는 중...</div>
+        </div>
+        <div class="sub" style="margin-top:6px;">
+          시작 화면에서도 점수판을 미리 불러옵니다(PC/모바일 원인 확인용)
+        </div>
+      </div>
+
       <button class="btn" id="startBtn">시작하기</button>
       <div class="sub">※ 사운드는 상단 🔊 버튼으로 끌 수 있어요</div>
     </div>
@@ -149,23 +100,19 @@
       <h1>으~ 너무 써!</h1>
       <p id="finalScore">최종 점수: 0</p>
 
-      <!-- ✅ TOP10 점수판 -->
-      <div class="rules" id="leaderboardBox" style="margin-top:12px;">
+      <div class="rules" style="margin-top:12px;">
         <div style="font-weight:900;margin-bottom:8px;">🏆 TOP10 점수</div>
         <div id="leaderboardList" style="display:flex;flex-direction:column;gap:6px;">
           <div style="opacity:.7;">불러오는 중...</div>
         </div>
 
-        <!-- ✅ Top10이면 이름 저장 -->
         <div id="saveNameBox" style="display:none;margin-top:10px;">
           <div style="font-weight:900;margin-bottom:6px;">🎉 TOP10 진입! 이름 저장</div>
           <div style="display:flex;gap:8px;">
             <input id="nameInput" maxlength="12" placeholder="이름/닉네임 (최대 12자)"
-              style="flex:1;padding:12px 12px;border-radius:12px;border:1px solid rgba(0,0,0,0.12);
-                     font-weight:800;outline:none;" />
+              style="flex:1;padding:12px 12px;border-radius:12px;border:1px solid rgba(0,0,0,0.12); font-weight:800;outline:none;" />
             <button id="saveNameBtn" type="button"
-              style="padding:12px 14px;border-radius:12px;border:0;cursor:pointer;
-                     font-weight:1000;color:#fff;background:#111;">
+              style="padding:12px 14px;border-radius:12px;border:0;cursor:pointer; font-weight:1000;color:#fff;background:#111;">
               저장
             </button>
           </div>
@@ -187,7 +134,7 @@
 <script>
 (() => {
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
-  const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev';
+  const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev'; // ✅ 여기 오타 나면 바로 전체 멈춤
   const LB_LIMIT = 10;
 
   const canvas = document.getElementById('c');
@@ -202,6 +149,8 @@
   const soundBtn = document.getElementById('soundBtn');
 
   const leaderboardList = document.getElementById('leaderboardList');
+  const leaderboardListStart = document.getElementById('leaderboardListStart');
+
   const saveNameBox = document.getElementById('saveNameBox');
   const nameInput = document.getElementById('nameInput');
   const saveNameBtn = document.getElementById('saveNameBtn');
@@ -220,10 +169,8 @@
 
   function resize() {
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    const w = Math.floor(window.innerWidth * dpr);
-    const h = Math.floor(window.innerHeight * dpr);
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
     state.dpr = dpr;
@@ -251,19 +198,17 @@
     return n.length > 12 ? n.slice(0, 12) : n;
   }
 
-  function renderLeaderboard(items, myId=null) {
-    if (!leaderboardList) return;
+  function renderLeaderboardInto(el, items, myId=null) {
+    if (!el) return;
     if (!items || items.length === 0) {
-      leaderboardList.innerHTML = `<div style="opacity:.7;">아직 기록이 없어요</div>`;
+      el.innerHTML = `<div style="opacity:.7;">아직 기록이 없어요</div>`;
       return;
     }
-
-    leaderboardList.innerHTML = items.slice(0, LB_LIMIT).map((it, idx) => {
+    el.innerHTML = items.slice(0, LB_LIMIT).map((it, idx) => {
       const name = escapeHtml(it.name ?? '익명');
       const score = Number(it.score ?? 0);
       const rank = idx + 1;
       const isMe = myId && it.id === myId;
-
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;
                     padding:8px 10px;border-radius:12px;
@@ -284,7 +229,7 @@
     return score >= last;
   }
 
-  // ===== server calls (레이스 제거 + 모바일 안정화) =====
+  // ===== server calls =====
   let currentScoreId = null;
   let submitToken = 0;
   let savingName = false;
@@ -293,92 +238,78 @@
     const token = ++submitToken;
     currentScoreId = null;
 
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 6000);
+
     try {
-      const res = await fetch(`${API_BASE}/score`, {
+      const res = await fetch(`${API_BASE}/score?t=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        mode: 'cors',
+        cache: 'no-store',
+        signal: ac.signal,
+        headers: { 'Content-Type': 'application/json', 'Accept':'application/json' },
         body: JSON.stringify({ name: '익명', score }),
       });
-      if (!res.ok) throw new Error('submit failed');
 
-      const text = await res.text();
-      const data = JSON.parse(text);
+      const raw = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${raw.slice(0,120)}`);
 
+      const data = JSON.parse(raw);
       if (token === submitToken) currentScoreId = data.id ?? null;
       return currentScoreId;
-    } catch (_) {
+
+    } catch (e) {
       if (token === submitToken) currentScoreId = null;
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  // ✅ 모바일에서 멈춤 방지: timeout + text + parse + 캐시 무효 + 원인 표시
-  async function fetchLeaderboard() {
-    if (!leaderboardList) return [];
+  async function fetchLeaderboardInto(el) {
+    if (!el) return [];
 
-    leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    el.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
 
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 6000);
 
     try {
       const url = `${API_BASE}/leaderboard?limit=${LB_LIMIT}&t=${Date.now()}`;
-
       const res = await fetch(url, {
         method: 'GET',
         mode: 'cors',
         cache: 'no-store',
-        redirect: 'follow',
         signal: ac.signal,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
+        headers: { 'Accept':'application/json', 'Cache-Control':'no-cache', 'Pragma':'no-cache' },
       });
 
       const ct = res.headers.get('content-type') || '';
       const raw = (await res.text()).trim();
 
       if (!res.ok) {
-        const preview = raw.slice(0, 180).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        leaderboardList.innerHTML =
-          `<div style="opacity:.7;">점수판 오류: HTTP ${res.status}<br/>CT: ${escapeHtml(ct)}<br/>${preview}</div>`;
+        const preview = escapeHtml(raw.slice(0, 180));
+        el.innerHTML = `<div style="opacity:.7;">점수판 오류: HTTP ${res.status}<br/>CT: ${escapeHtml(ct)}<br/>${preview}</div>`;
         return [];
       }
 
       let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        // 혹시 이상한 형태면 복구 시도
-        let fixed = raw;
-        if (fixed.startsWith('"items"')) fixed = `{${fixed}`;
-        else if (fixed.startsWith('items"')) fixed = `{"${fixed}`;
-        if (!fixed.startsWith('{')) fixed = `{${fixed}`;
-        if (!fixed.endsWith('}')) fixed = `${fixed}}`;
-
-        try {
-          data = JSON.parse(fixed);
-        } catch {
-          const preview = raw.slice(0, 180).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          leaderboardList.innerHTML =
-            `<div style="opacity:.7;">점수판 오류: JSON 파싱 실패<br/>CT: ${escapeHtml(ct)}<br/>${preview}</div>`;
-          return [];
-        }
+      try { data = JSON.parse(raw); }
+      catch {
+        const preview = escapeHtml(raw.slice(0, 180));
+        el.innerHTML = `<div style="opacity:.7;">점수판 오류: JSON 파싱 실패<br/>CT: ${escapeHtml(ct)}<br/>${preview}</div>`;
+        return [];
       }
 
       const items = data.items ?? data ?? [];
-      renderLeaderboard(items, currentScoreId);
+      renderLeaderboardInto(el, items, currentScoreId);
       return items;
 
     } catch (e) {
       const msg = (e && e.name === 'AbortError')
-        ? '타임아웃(6초) - 모바일에서 요청이 멈춤'
+        ? '타임아웃(6초) - 요청이 멈춤'
         : `네트워크 오류: ${String(e?.message || e)}`;
-
-      leaderboardList.innerHTML =
-        `<div style="opacity:.7;">점수판을 불러오지 못했어요<br/>${escapeHtml(msg)}</div>`;
+      el.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요<br/>${escapeHtml(msg)}</div>`;
       return [];
     } finally {
       clearTimeout(timer);
@@ -387,15 +318,24 @@
 
   async function saveName(name) {
     if (!currentScoreId) return false;
+
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 6000);
+
     try {
-      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(currentScoreId)}/name`, {
+      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(currentScoreId)}/name?t=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        mode: 'cors',
+        cache: 'no-store',
+        signal: ac.signal,
+        headers: { 'Content-Type': 'application/json', 'Accept':'application/json' },
         body: JSON.stringify({ name }),
       });
       return res.ok;
-    } catch (_) {
+    } catch {
       return false;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -403,8 +343,6 @@
     submitToken++;
     currentScoreId = null;
     savingName = false;
-
-    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
     if (saveNameBox) saveNameBox.style.display = 'none';
     if (saveNameBtn) { saveNameBtn.textContent = '저장'; saveNameBtn.disabled = false; }
     if (nameInput) nameInput.value = localStorage.getItem('bb_name') || '';
@@ -412,7 +350,6 @@
 
   // ===== audio =====
   const audio = { enabled:true, started:false, bgm:null, hit:null, ctx:null };
-
   function setSoundUi(){ soundBtn.textContent = audio.enabled ? '🔊' : '🔇'; }
   function tryCreateMediaAudio() {
     if (!audio.bgm) { audio.bgm = new Audio('bgm.mp3'); audio.bgm.loop = true; audio.bgm.volume = 0.25; audio.bgm.preload = 'auto'; }
@@ -493,52 +430,21 @@
 
   // ===== state =====
   const state = {
-    dpr: 1,
-    running: false,
-    gameOver: false,
-    score: 0,
-
-    spawnTimer: 0,
-    spawnEvery: 650,
-    minSpawnEvery: 240,
-
-    speedMin: 44,
-    speedMax: 136,
-
-    enemies: [],
-    effects: [],
-
-    lastTs: 0,
-    center: { x: 0, y: 0 },
-
-    mouthRadius: 92,
-    dangerLevel: 0,
-    camShake: { x:0, y:0, mag:0 },
-    nearThreshold: 190,
-
-    hitShakeKick: 14,
-    hitShakeJitter: 8,
-
-    elapsed: 0,
-    rampDelay: 10000,
+    dpr: 1, running: false, gameOver: false, score: 0,
+    spawnTimer: 0, spawnEvery: 650, minSpawnEvery: 240,
+    speedMin: 44, speedMax: 136,
+    enemies: [], effects: [],
+    lastTs: 0, center: { x: 0, y: 0 },
+    mouthRadius: 92, dangerLevel: 0, camShake: { x:0, y:0, mag:0 },
+    nearThreshold: 190, hitShakeKick: 14, hitShakeJitter: 8,
+    elapsed: 0, rampDelay: 10000,
   };
 
   function resetGameToIdle() {
-    state.running = false;
-    state.gameOver = false;
-    state.score = 0;
-
-    state.spawnTimer = 0;
-    state.spawnEvery = 650;
-    state.speedMin = 44;
-    state.speedMax = 136;
-
-    state.enemies.length = 0;
-    state.effects.length = 0;
-
-    state.dangerLevel = 0;
-    state.camShake = { x:0, y:0, mag:0 };
-    state.elapsed = 0;
+    state.running = false; state.gameOver = false; state.score = 0;
+    state.spawnTimer = 0; state.spawnEvery = 650; state.speedMin = 44; state.speedMax = 136;
+    state.enemies.length = 0; state.effects.length = 0;
+    state.dangerLevel = 0; state.camShake = { x:0, y:0, mag:0 }; state.elapsed = 0;
 
     scoreChip.textContent = `점수: ${state.score}`;
     hintChip.textContent = '시작하기를 눌러주세요';
@@ -546,30 +452,15 @@
     overlay.style.display = 'none';
     startOverlay.style.display = 'flex';
 
-    stopBgm();
-    audio.started = false;
-
+    stopBgm(); audio.started = false;
     resetLeaderboardUI();
-    state.lastTs = performance.now();
   }
 
   function startGame() {
-    state.running = true;
-    state.gameOver = false;
-
-    state.score = 0;
-    state.spawnTimer = 0;
-    state.spawnEvery = 650;
-
-    state.speedMin = 44;
-    state.speedMax = 136;
-
-    state.enemies.length = 0;
-    state.effects.length = 0;
-
-    state.dangerLevel = 0;
-    state.camShake = { x:0, y:0, mag:0 };
-    state.elapsed = 0;
+    state.running = true; state.gameOver = false; state.score = 0;
+    state.spawnTimer = 0; state.spawnEvery = 650; state.speedMin = 44; state.speedMax = 136;
+    state.enemies.length = 0; state.effects.length = 0;
+    state.dangerLevel = 0; state.camShake = { x:0, y:0, mag:0 }; state.elapsed = 0;
 
     scoreChip.textContent = `점수: ${state.score}`;
     hintChip.textContent = '손가락을 터치!';
@@ -578,21 +469,17 @@
     overlay.style.display = 'none';
 
     resetLeaderboardUI();
-
     startBgmIfPossible();
     state.lastTs = performance.now();
   }
 
   function endGame() {
-    state.running = false;
-    state.gameOver = true;
-
+    state.running = false; state.gameOver = true;
     finalScoreEl.textContent = `최종 점수: ${state.score}`;
     overlay.style.display = 'flex';
     hintChip.textContent = '게임 오버';
 
-    stopBgm();
-    audio.started = false;
+    stopBgm(); audio.started = false;
 
     const myScore = state.score;
     const localToken = ++submitToken;
@@ -601,7 +488,7 @@
       await submitScore(myScore);
       if (localToken !== submitToken) return;
 
-      const items = await fetchLeaderboard();
+      const items = await fetchLeaderboardInto();
       if (localToken !== submitToken) return;
 
       if (isTop10(myScore, items)) {
@@ -609,14 +496,21 @@
         savingName = false;
         saveNameBtn.textContent = '저장';
         saveNameBtn.disabled = false;
-
-        const saved = localStorage.getItem('bb_name') || '';
-        nameInput.value = saved;
+        nameInput.value = localStorage.getItem('bb_name') || '';
         nameInput.focus();
       } else {
         saveNameBox.style.display = 'none';
       }
     })();
+  }
+
+  async function fetchLeaderboardInto() {
+    // 게임오버 화면용
+    const items = await fetchLeaderboardIntoEl(leaderboardList);
+    return items;
+  }
+  async function fetchLeaderboardIntoEl(el) {
+    return await fetchLeaderboardInto(el);
   }
 
   function getCanvasPointFromEvent(e) {
@@ -664,7 +558,6 @@
   function handlePointer(e) {
     if (!state.running) return;
     e.preventDefault();
-
     const p = getCanvasPointFromEvent(e);
 
     let hitIndex = -1;
@@ -673,7 +566,6 @@
       if (!en.alive) continue;
       if (hitTestCircle(p.x, p.y, en.x, en.y, en.r * 1.25)) { hitIndex = i; break; }
     }
-
     if (hitIndex >= 0) {
       const en = state.enemies[hitIndex];
       en.alive = false;
@@ -706,7 +598,7 @@
       const ok = await saveName(name);
       if (ok) {
         localStorage.setItem('bb_name', name);
-        await fetchLeaderboard();
+        await fetchLeaderboardInto(leaderboardList);
         saveNameBox.style.display = 'none';
       } else {
         alert('저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
@@ -722,7 +614,6 @@
   function drawBackground(d) {
     const w = canvas.width, h = canvas.height;
     ctx.save();
-    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
@@ -780,7 +671,6 @@
       ctx.save();
       ctx.translate(en.x, en.y);
       ctx.rotate(angle);
-      ctx.globalAlpha = 1;
       ctx.drawImage(img, -size/2, -size/2, size, size);
       ctx.restore();
     } else {
@@ -867,8 +757,6 @@
       const rr = en.r + mouthR;
       const dx = en.x - cx, dy = en.y - cy;
       if ((dx*dx + dy*dy) <= rr*rr) {
-        state.dangerLevel = 1;
-        state.camShake.mag = Math.max(state.camShake.mag, 26 * state.dpr);
         endGame();
         break;
       }
@@ -900,16 +788,24 @@
     requestAnimationFrame(loop);
   }
 
+  window.addEventListener('error', (e) => {
+    // JS가 죽는 경우, 시작화면 점수판에 강제로 표시
+    if (leaderboardListStart) {
+      leaderboardListStart.innerHTML = `<div style="opacity:.7;">JS 오류: ${escapeHtml(e?.message || 'unknown')}</div>`;
+    }
+  });
+
   async function boot() {
     resize();
-    const [m, f, i] = await Promise.all([
-      loadImg(assets.mouth.src),
-      loadImg(assets.finger.src),
-      loadImg(assets.inom.src),
+
+    // ✅ 시작 화면에서 먼저 점수판 호출 (PC/모바일 모두 원인 확정)
+    await fetchLeaderboardInto(leaderboardListStart);
+
+    await Promise.all([
+      loadImg(assets.mouth.src).then(r => (assets.mouth.img=r.img, assets.mouth.ok=r.ok)),
+      loadImg(assets.finger.src).then(r => (assets.finger.img=r.img, assets.finger.ok=r.ok)),
+      loadImg(assets.inom.src).then(r => (assets.inom.img=r.img, assets.inom.ok=r.ok)),
     ]);
-    assets.mouth.img = m.img; assets.mouth.ok = m.ok;
-    assets.finger.img = f.img; assets.finger.ok = f.ok;
-    assets.inom.img = i.img; assets.inom.ok = i.ok;
 
     resetGameToIdle();
     requestAnimationFrame((t) => { state.lastTs = t; loop(t); });
