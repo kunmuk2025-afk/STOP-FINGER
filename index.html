@@ -149,14 +149,12 @@
       <h1>으~ 너무 써!</h1>
       <p id="finalScore">최종 점수: 0</p>
 
-      <!-- ✅ TOP10 점수판 -->
       <div class="rules" id="leaderboardBox" style="margin-top:12px;">
         <div style="font-weight:900;margin-bottom:8px;">🏆 TOP10 점수</div>
         <div id="leaderboardList" style="display:flex;flex-direction:column;gap:6px;">
           <div style="opacity:.7;">불러오는 중...</div>
         </div>
 
-        <!-- ✅ Top10이면 이름 저장 -->
         <div id="saveNameBox" style="display:none;margin-top:10px;">
           <div style="font-weight:900;margin-bottom:6px;">🎉 TOP10 진입! 이름 저장</div>
           <div style="display:flex;gap:8px;">
@@ -173,7 +171,6 @@
         </div>
       </div>
 
-      <!-- ✅ 버튼은 점수판 아래 -->
       <button class="btn" id="restartBtn">다시하기</button>
       <button class="btn secondary" id="goBtn">쓴맛 동화책 보러가기</button>
 
@@ -193,6 +190,9 @@
   // ✅ 점수 서버 주소
   const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev';
   const LB_LIMIT = 10;
+
+  // ✅ fetch 타임아웃(ms)
+  const FETCH_TIMEOUT = 6500;
 
   const canvas = document.getElementById('c');
   const scoreChip = document.getElementById('scoreChip');
@@ -255,18 +255,34 @@
     return n.length > 12 ? n.slice(0, 12) : n;
   }
 
+  // ✅ 응답 포맷이 무엇이든 "배열 items"로 정규화
+  function extractLeaderboardItems(data) {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+
+    // 흔한 케이스들
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.leaderboard)) return data.leaderboard;
+    if (Array.isArray(data.result)) return data.result;
+    if (Array.isArray(data.data)) return data.data;
+
+    // 혹시 { items: { ... } } 같은 이상 형태 방어
+    return [];
+  }
+
   function renderLeaderboard(items, myId=null) {
     if (!leaderboardList) return;
-    if (!items || items.length === 0) {
+
+    if (!Array.isArray(items) || items.length === 0) {
       leaderboardList.innerHTML = `<div style="opacity:.7;">아직 기록이 없어요</div>`;
       return;
     }
 
     leaderboardList.innerHTML = items.slice(0, LB_LIMIT).map((it, idx) => {
-      const name = escapeHtml(it.name ?? '익명');
-      const score = Number(it.score ?? 0);
+      const name = escapeHtml(it?.name ?? '익명');
+      const score = Number(it?.score ?? 0);
       const rank = idx + 1;
-      const isMe = myId && it.id === myId;
+      const isMe = myId && it?.id === myId;
 
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;
@@ -274,7 +290,7 @@
                     background:${isMe ? 'rgba(255, 235, 59, 0.35)' : 'rgba(255,255,255,0.7)'};
                     border:1px solid rgba(0,0,0,0.05);">
           <div style="font-weight:900;">${rank}위 · ${name}${isMe ? ' (나)' : ''}</div>
-          <div style="font-weight:1000;">${score.toLocaleString()}점</div>
+          <div style="font-weight:1000;">${isFinite(score) ? score.toLocaleString() : '0'}점</div>
         </div>
       `;
     }).join('');
@@ -282,10 +298,52 @@
 
   // ✅ 동점도 Top10 인정 (>=)
   function isTop10(score, items) {
-    if (!items) return false;
+    if (!Array.isArray(items)) return false;
     if (items.length < 10) return true;
     const last = Number(items[items.length - 1]?.score ?? -Infinity);
     return score >= last;
+  }
+
+  // ✅ fetch with timeout + 안전 JSON 파싱
+  async function fetchJson(url, options={}) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
+    try {
+      const res = await fetch(url, {
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-store',
+        redirect: 'follow',
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          ...(options.headers || {}),
+        },
+      });
+
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+
+      return { ok: res.ok, status: res.status, data, raw: text };
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function showLbError(msg) {
+    if (!leaderboardList) return;
+    leaderboardList.innerHTML = `
+      <div style="opacity:.8;">
+        ${escapeHtml(msg)}
+        <div style="margin-top:6px; font-size:12px; opacity:.7; line-height:1.35;">
+          • 로컬 파일(file://)로 실행 중이면 CORS로 막힐 수 있어요.<br/>
+          • https 사이트에 올리거나 로컬 서버로 실행해 주세요.
+        </div>
+      </div>
+    `;
   }
 
   // ===== server calls =====
@@ -295,7 +353,7 @@
   // ✅ 이름 저장 중복/버튼 고정 방지
   let savingName = false;
 
-  // ✅ endGame 비동기 레이스 방지 (다시하기 눌러도 이전 요청이 UI 덮치지 않게)
+  // ✅ endGame 비동기 레이스 방지
   let endGameRunId = 0;
 
   async function submitScore(score) {
@@ -304,14 +362,13 @@
     lastScoreId = null;
 
     try {
-      const res = await fetch(`${API_BASE}/score`, {
+      const { ok, data } = await fetchJson(`${API_BASE}/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: '익명', score }),
       });
-      if (!res.ok) throw new Error('submit failed');
-      const data = await res.json();
-      lastScoreId = data.id ?? null;
+      if (!ok) throw new Error('submit failed');
+      lastScoreId = data?.id ?? null;
       return lastScoreId;
     } catch (_) {
       lastScoreId = null;
@@ -324,15 +381,31 @@
   async function fetchLeaderboard() {
     if (!leaderboardList) return [];
     leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+
     try {
-      const res = await fetch(`${API_BASE}/leaderboard?limit=${LB_LIMIT}`, { method: 'GET' });
-      if (!res.ok) throw new Error('leaderboard fetch failed');
-      const data = await res.json();
-      const items = data.items ?? data ?? [];
+      const { ok, status, data, raw } = await fetchJson(`${API_BASE}/leaderboard?limit=${LB_LIMIT}`, {
+        method: 'GET',
+      });
+      if (!ok) {
+        showLbError(`점수판 응답 오류 (HTTP ${status})`);
+        return [];
+      }
+
+      const items = extractLeaderboardItems(data);
+
+      // ✅ 혹시 data가 null인데 raw가 있는 경우(서버가 JSON이 아닌 텍스트를 줌)
+      if (!Array.isArray(items)) {
+        showLbError('점수판 데이터 형식이 예상과 달라요');
+        return [];
+      }
+
       renderLeaderboard(items, lastScoreId);
       return items;
-    } catch (_) {
-      leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
+    } catch (err) {
+      // AbortError / CORS / 네트워크 오류
+      const isAbort = err && String(err.name) === 'AbortError';
+      if (isAbort) showLbError('점수판 불러오기 시간 초과');
+      else showLbError('점수판을 불러오지 못했어요 (네트워크/CORS)');
       return [];
     }
   }
@@ -340,12 +413,12 @@
   async function saveName(name) {
     if (!lastScoreId) return false;
     try {
-      const res = await fetch(`${API_BASE}/score/${encodeURIComponent(lastScoreId)}/name`, {
+      const { ok } = await fetchJson(`${API_BASE}/score/${encodeURIComponent(lastScoreId)}/name`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
-      return res.ok;
+      return !!ok;
     } catch (_) {
       return false;
     }
@@ -381,7 +454,7 @@
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g); g.connect(ac.destination);
     osc.start(t0); osc.stop(t0 + dur + 0.02);
-  }
+    }
   async function startBgmIfPossible() {
     if (!audio.enabled || audio.started) return;
     tryCreateMediaAudio();
@@ -533,7 +606,6 @@
     startOverlay.style.display = 'none';
     overlay.style.display = 'none';
 
-    // ✅ 점수/이름 저장 UI 상태 리셋 (저장중 고정 방지)
     resetLeaderboardUI();
 
     startBgmIfPossible();
@@ -551,11 +623,9 @@
     stopBgm();
     audio.started = false;
 
-    // ✅ 이번 endGame 실행 ID
     const runId = ++endGameRunId;
     const myScore = state.score;
 
-    // ✅ 게임오버 후: 점수등록 → 리더보드 → Top10이면 이름 저장 UI
     (async () => {
       await submitScore(myScore);
       if (runId !== endGameRunId) return;
@@ -566,7 +636,6 @@
       if (isTop10(myScore, items)) {
         saveNameBox.style.display = 'block';
 
-        // ✅ 버튼 상태 강제 초기화 (저장중 고정 방지)
         savingName = false;
         saveNameBtn.textContent = '저장';
         saveNameBtn.disabled = false;
@@ -875,6 +944,9 @@
 
     resetGameToIdle();
     requestAnimationFrame((t) => { state.lastTs = t; loop(t); });
+
+    // ✅ 시작 화면에서도 TOP10 미리 불러오고 싶으면 아래 주석 해제
+    // await fetchLeaderboard();
   }
 
   boot();
