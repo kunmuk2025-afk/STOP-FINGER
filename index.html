@@ -318,21 +318,58 @@
     }
   }
 
-  async function fetchLeaderboard() {
-    if (!leaderboardList) return [];
-    leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+ async function fetchLeaderboard() {
+  if (!leaderboardList) return [];
+
+  leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+
+  try {
+    // ✅ 모바일 캐시/중간응답 방지
+    const url = `${API_BASE}/leaderboard?limit=${LB_LIMIT}&t=${Date.now()}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!res.ok) throw new Error('leaderboard fetch failed');
+
+    // ✅ 모바일에서 res.json() 대신 text→parse가 훨씬 안정적
+    const text = (await res.text()).trim();
+
+    let data;
     try {
-      const res = await fetch(`${API_BASE}/leaderboard?limit=${LB_LIMIT}`, { method: 'GET' });
-      if (!res.ok) throw new Error('leaderboard fetch failed');
-      const data = await res.json();
-      const items = data.items ?? data ?? [];
-      renderLeaderboard(items, currentScoreId);
-      return items;
-    } catch (_) {
-      leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
-      return [];
+      data = JSON.parse(text);
+    } catch (e) {
+      // 혹시라도 앞부분이 잘린 형태(items로 시작)면 복구 시도
+      let fixed = text;
+
+      if (fixed.startsWith('"items"')) fixed = `{${fixed}`;
+      else if (fixed.startsWith('items"')) fixed = `{"${fixed}`;
+      else if (!fixed.startsWith('{') && fixed.includes('"items"')) fixed = `{${fixed}`;
+
+      if (!fixed.endsWith('}')) fixed = `${fixed}}`;
+
+      try {
+        data = JSON.parse(fixed);
+      } catch {
+        leaderboardList.innerHTML =
+          `<div style="opacity:.7;">점수판 로딩 실패 (JSON 파싱 오류)</div>`;
+        return [];
+      }
     }
+
+    const items = data.items ?? data ?? [];
+    renderLeaderboard(items, currentScoreId);
+    return items;
+
+  } catch (_) {
+    leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
+    return [];
   }
+}
 
   async function saveName(name) {
     if (!currentScoreId) return false;
@@ -876,3 +913,4 @@
 </script>
 </body>
 </html>
+
