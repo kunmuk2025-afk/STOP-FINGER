@@ -190,8 +190,8 @@
   // ✅ 스마트스토어/블로그 URL
   const BOOK_URL = 'https://smartstore.naver.com/bitterbooks/';
 
-  // ✅ 점수 서버 주소(대표님 서버 OR 아래 Worker 예시 주소)
-  const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev'; // 
+  // ✅ 점수 서버 주소
+  const API_BASE = 'https://bitterbooks-score-api.kunmuk2025.workers.dev';
   const LB_LIMIT = 10;
 
   const canvas = document.getElementById('c');
@@ -252,8 +252,7 @@
   function normalizeName(raw) {
     const n = (raw || '').trim();
     if (!n) return '';
-    if (n.length > 12) return n.slice(0, 12);
-    return n;
+    return n.length > 12 ? n.slice(0, 12) : n;
   }
 
   function renderLeaderboard(items, myId=null) {
@@ -281,17 +280,23 @@
     }).join('');
   }
 
+  // ✅ 동점도 Top10 인정 (>=)
   function isTop10(score, items) {
     if (!items) return false;
     if (items.length < 10) return true;
     const last = Number(items[items.length - 1]?.score ?? -Infinity);
-    // 동점도 허용하려면 >= 로 바꾸세요
-    return score > last;
+    return score >= last;
   }
 
   // ===== server calls =====
   let lastScoreId = null;
   let submitting = false;
+
+  // ✅ 이름 저장 중복/버튼 고정 방지
+  let savingName = false;
+
+  // ✅ endGame 비동기 레이스 방지 (다시하기 눌러도 이전 요청이 UI 덮치지 않게)
+  let endGameRunId = 0;
 
   async function submitScore(score) {
     if (submitting) return lastScoreId;
@@ -459,6 +464,17 @@
     rampDelay: 10000,
   };
 
+  function resetLeaderboardUI() {
+    lastScoreId = null;
+    submitting = false;
+    savingName = false;
+
+    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    if (saveNameBox) saveNameBox.style.display = 'none';
+    if (saveNameBtn) { saveNameBtn.textContent = '저장'; saveNameBtn.disabled = false; }
+    if (nameInput) nameInput.value = localStorage.getItem('bb_name') || '';
+  }
+
   function resetGameToIdle() {
     state.running = false;
     state.gameOver = false;
@@ -485,15 +501,15 @@
     stopBgm();
     audio.started = false;
 
-    // 랭킹 영역 초기화
-    lastScoreId = null;
-    if (leaderboardList) leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
-    if (saveNameBox) saveNameBox.style.display = 'none';
+    resetLeaderboardUI();
 
     state.lastTs = performance.now();
   }
 
   function startGame() {
+    // ✅ 이전 endGame 비동기 무효화
+    endGameRunId++;
+
     state.running = true;
     state.gameOver = false;
 
@@ -517,9 +533,8 @@
     startOverlay.style.display = 'none';
     overlay.style.display = 'none';
 
-    // 점수/이름 저장 UI 초기화
-    lastScoreId = null;
-    if (saveNameBox) saveNameBox.style.display = 'none';
+    // ✅ 점수/이름 저장 UI 상태 리셋 (저장중 고정 방지)
+    resetLeaderboardUI();
 
     startBgmIfPossible();
     state.lastTs = performance.now();
@@ -536,13 +551,26 @@
     stopBgm();
     audio.started = false;
 
+    // ✅ 이번 endGame 실행 ID
+    const runId = ++endGameRunId;
+    const myScore = state.score;
+
     // ✅ 게임오버 후: 점수등록 → 리더보드 → Top10이면 이름 저장 UI
     (async () => {
-      await submitScore(state.score);
-      const items = await fetchLeaderboard();
+      await submitScore(myScore);
+      if (runId !== endGameRunId) return;
 
-      if (isTop10(state.score, items)) {
+      const items = await fetchLeaderboard();
+      if (runId !== endGameRunId) return;
+
+      if (isTop10(myScore, items)) {
         saveNameBox.style.display = 'block';
+
+        // ✅ 버튼 상태 강제 초기화 (저장중 고정 방지)
+        savingName = false;
+        saveNameBtn.textContent = '저장';
+        saveNameBtn.disabled = false;
+
         const saved = localStorage.getItem('bb_name') || '';
         nameInput.value = saved;
         nameInput.focus();
@@ -626,20 +654,27 @@
   restartBtn.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
   goBtn.addEventListener('click', () => { window.location.href = BOOK_URL; });
 
-  // ✅ Top10 이름 저장 버튼
+  // ✅ Top10 이름 저장 버튼 (저장중 고정/중복 클릭 방지)
   saveNameBtn.addEventListener('click', async () => {
     const name = normalizeName(nameInput.value);
     if (!name) return;
+    if (savingName) return;
 
+    savingName = true;
     saveNameBtn.textContent = '저장중...';
     saveNameBtn.disabled = true;
 
-    const ok = await saveName(name);
-    if (ok) {
-      localStorage.setItem('bb_name', name);
-      await fetchLeaderboard();
-      saveNameBox.style.display = 'none';
-    } else {
+    try {
+      const ok = await saveName(name);
+      if (ok) {
+        localStorage.setItem('bb_name', name);
+        await fetchLeaderboard();
+        saveNameBox.style.display = 'none';
+      } else {
+        alert('저장에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      savingName = false;
       saveNameBtn.textContent = '저장';
       saveNameBtn.disabled = false;
     }
