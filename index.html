@@ -173,7 +173,6 @@
         </div>
       </div>
 
-      <!-- ✅ 버튼은 점수판 아래 -->
       <button class="btn" id="restartBtn">다시하기</button>
       <button class="btn secondary" id="goBtn">쓴맛 동화책 보러가기</button>
 
@@ -285,14 +284,9 @@
     return score >= last;
   }
 
-  // ===== server calls (레이스 제거 버전) =====
-  // ✅ 이번 게임의 점수 ID는 currentScoreId로만 관리
+  // ===== server calls (레이스 제거 + 모바일 안정화) =====
   let currentScoreId = null;
-
-  // ✅ submit 요청이 늦게 끝나도 이전 결과가 currentScoreId를 덮어쓰지 않도록 토큰 사용
   let submitToken = 0;
-
-  // ✅ 이름 저장 중복 클릭 방지
   let savingName = false;
 
   async function submitScore(score) {
@@ -302,15 +296,15 @@
     try {
       const res = await fetch(`${API_BASE}/score`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ name: '익명', score }),
       });
       if (!res.ok) throw new Error('submit failed');
-      const data = await res.json();
-      // ✅ 가장 최신 submit만 유효
-      if (token === submitToken) {
-        currentScoreId = data.id ?? null;
-      }
+
+      const text = await res.text();
+      const data = JSON.parse(text);
+
+      if (token === submitToken) currentScoreId = data.id ?? null;
       return currentScoreId;
     } catch (_) {
       if (token === submitToken) currentScoreId = null;
@@ -318,65 +312,85 @@
     }
   }
 
- async function fetchLeaderboard() {
-  if (!leaderboardList) return [];
+  // ✅ 모바일에서 멈춤 방지: timeout + text + parse + 캐시 무효 + 원인 표시
+  async function fetchLeaderboard() {
+    if (!leaderboardList) return [];
 
-  leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
+    leaderboardList.innerHTML = `<div style="opacity:.7;">불러오는 중...</div>`;
 
-  try {
-    // ✅ 모바일 캐시/중간응답 방지
-    const url = `${API_BASE}/leaderboard?limit=${LB_LIMIT}&t=${Date.now()}`;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 6000);
 
-    const res = await fetch(url, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-store',
-      headers: { 'Accept': 'application/json' },
-    });
-
-    if (!res.ok) throw new Error('leaderboard fetch failed');
-
-    // ✅ 모바일에서 res.json() 대신 text→parse가 훨씬 안정적
-    const text = (await res.text()).trim();
-
-    let data;
     try {
-      data = JSON.parse(text);
-    } catch (e) {
-      // 혹시라도 앞부분이 잘린 형태(items로 시작)면 복구 시도
-      let fixed = text;
+      const url = `${API_BASE}/leaderboard?limit=${LB_LIMIT}&t=${Date.now()}`;
 
-      if (fixed.startsWith('"items"')) fixed = `{${fixed}`;
-      else if (fixed.startsWith('items"')) fixed = `{"${fixed}`;
-      else if (!fixed.startsWith('{') && fixed.includes('"items"')) fixed = `{${fixed}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: ac.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
 
-      if (!fixed.endsWith('}')) fixed = `${fixed}}`;
+      const ct = res.headers.get('content-type') || '';
+      const raw = (await res.text()).trim();
 
-      try {
-        data = JSON.parse(fixed);
-      } catch {
+      if (!res.ok) {
+        const preview = raw.slice(0, 180).replace(/</g,'&lt;').replace(/>/g,'&gt;');
         leaderboardList.innerHTML =
-          `<div style="opacity:.7;">점수판 로딩 실패 (JSON 파싱 오류)</div>`;
+          `<div style="opacity:.7;">점수판 오류: HTTP ${res.status}<br/>CT: ${escapeHtml(ct)}<br/>${preview}</div>`;
         return [];
       }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        // 혹시 이상한 형태면 복구 시도
+        let fixed = raw;
+        if (fixed.startsWith('"items"')) fixed = `{${fixed}`;
+        else if (fixed.startsWith('items"')) fixed = `{"${fixed}`;
+        if (!fixed.startsWith('{')) fixed = `{${fixed}`;
+        if (!fixed.endsWith('}')) fixed = `${fixed}}`;
+
+        try {
+          data = JSON.parse(fixed);
+        } catch {
+          const preview = raw.slice(0, 180).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          leaderboardList.innerHTML =
+            `<div style="opacity:.7;">점수판 오류: JSON 파싱 실패<br/>CT: ${escapeHtml(ct)}<br/>${preview}</div>`;
+          return [];
+        }
+      }
+
+      const items = data.items ?? data ?? [];
+      renderLeaderboard(items, currentScoreId);
+      return items;
+
+    } catch (e) {
+      const msg = (e && e.name === 'AbortError')
+        ? '타임아웃(6초) - 모바일에서 요청이 멈춤'
+        : `네트워크 오류: ${String(e?.message || e)}`;
+
+      leaderboardList.innerHTML =
+        `<div style="opacity:.7;">점수판을 불러오지 못했어요<br/>${escapeHtml(msg)}</div>`;
+      return [];
+    } finally {
+      clearTimeout(timer);
     }
-
-    const items = data.items ?? data ?? [];
-    renderLeaderboard(items, currentScoreId);
-    return items;
-
-  } catch (_) {
-    leaderboardList.innerHTML = `<div style="opacity:.7;">점수판을 불러오지 못했어요</div>`;
-    return [];
   }
-}
 
   async function saveName(name) {
     if (!currentScoreId) return false;
     try {
       const res = await fetch(`${API_BASE}/score/${encodeURIComponent(currentScoreId)}/name`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ name }),
       });
       return res.ok;
@@ -386,9 +400,7 @@
   }
 
   function resetLeaderboardUI() {
-    // ✅ 새 게임 시작 시, 이전 submit 결과가 덮어쓰지 못하게 토큰 증가
     submitToken++;
-
     currentScoreId = null;
     savingName = false;
 
@@ -538,7 +550,6 @@
     audio.started = false;
 
     resetLeaderboardUI();
-
     state.lastTs = performance.now();
   }
 
@@ -584,10 +595,9 @@
     audio.started = false;
 
     const myScore = state.score;
-    const localToken = ++submitToken; // ✅ 이번 게임 토큰(이후 결과가 뒤집히면 무시)
+    const localToken = ++submitToken;
 
     (async () => {
-      // 점수 등록(최신 토큰만 currentScoreId 세팅됨)
       await submitScore(myScore);
       if (localToken !== submitToken) return;
 
@@ -596,8 +606,6 @@
 
       if (isTop10(myScore, items)) {
         saveNameBox.style.display = 'block';
-
-        // 버튼 상태 초기화
         savingName = false;
         saveNameBtn.textContent = '저장';
         saveNameBtn.disabled = false;
@@ -685,7 +693,6 @@
   restartBtn.addEventListener('click', (e) => { e.preventDefault(); startGame(); });
   goBtn.addEventListener('click', () => { window.location.href = BOOK_URL; });
 
-  // ✅ Top10 이름 저장 버튼
   saveNameBtn.addEventListener('click', async () => {
     const name = normalizeName(nameInput.value);
     if (!name) return;
@@ -913,4 +920,3 @@
 </script>
 </body>
 </html>
-
