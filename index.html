@@ -1,1070 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Bitter Hero V6</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#07142f" />
+<meta property="og:title" content="BITTER HERO" />
+<meta property="og:description" content="TAP! DODGE! FEVER! 손가락 왕국을 탈출하는 3스테이지 액션 게임" />
+<meta property="og:url" content="" />
+<title>BITTER HERO</title>
 <style>
-  :root {
-    --bg: #08142d;
-    --panel: rgba(8, 20, 45, 0.88);
-    --panel2: rgba(16, 36, 74, 0.95);
-    --line: rgba(255,255,255,0.16);
-    --text: #f5f8ff;
-    --muted: #c8d5ff;
-    --yellow: #ffc928;
-    --orange: #ff8a00;
-    --blue: #1d8cff;
-    --green: #23c96b;
-    --pink: #ff5cc3;
-    --danger: #ff4d6d;
-    --shadow: 0 14px 40px rgba(0,0,0,.35);
-    --radius: 22px;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top, #123772, #08142d 60%); color: var(--text); font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-  body { display: flex; align-items: center; justify-content: center; padding: 18px; }
-  button { font: inherit; border: none; cursor: pointer; }
-  .app {
-    width: min(430px, 100%);
-    height: min(900px, calc(100vh - 20px));
-    background: linear-gradient(180deg, rgba(7,16,40,.95), rgba(8,20,45,.97));
-    border-radius: 28px;
-    overflow: hidden;
-    position: relative;
-    box-shadow: 0 30px 80px rgba(0,0,0,.45);
-    border: 1px solid rgba(255,255,255,.08);
-  }
-  .screen { position: absolute; inset: 0; display: none; }
-  .screen.active { display: block; }
-  .hidden { display: none !important; }
-  .topbar {
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding: 16px;
-    position: relative; z-index: 3;
-  }
-  .pill-btn, .ghost-btn, .primary-btn, .secondary-btn, .mini-btn {
-    border-radius: 16px; font-weight: 800; letter-spacing:-0.02em;
-  }
-  .pill-btn {
-    background: rgba(255,255,255,.14); color:#fff; padding:10px 14px; border:1px solid rgba(255,255,255,.1);
-    backdrop-filter: blur(8px);
-  }
-  .ghost-btn {
-    background: rgba(255,255,255,.08); color:#fff; padding: 12px 14px; border:1px solid rgba(255,255,255,.1);
-  }
-  .primary-btn {
-    background: linear-gradient(180deg, #ffd43b, #ffae00); color:#2a1900; padding: 15px 18px;
-    box-shadow: 0 10px 26px rgba(255, 189, 43, .35);
-  }
-  .secondary-btn {
-    background: linear-gradient(180deg, #34a0ff, #1168ff); color:#fff; padding: 15px 18px;
-    box-shadow: 0 10px 26px rgba(17,104,255,.32);
-  }
-  .mini-btn { background: rgba(255,255,255,.12); color:#fff; padding: 10px 12px; }
-  .btn-row { display:flex; gap:10px; }
-  .home-wrap { position:relative; width:100%; height:100%; background:#08142d; touch-action:manipulation; }
-  .home-art { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; user-select:none; -webkit-user-drag:none; }
-  .hotspot { position:absolute; background: transparent; z-index:6; pointer-events:auto; border:0; outline:0; padding:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
-  .home-linkbar {
-    position:absolute; top:14px; right:14px; display:flex; gap:8px; z-index:3;
-  }
-  .icon-chip {
-    background: rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.1); color:#fff; border-radius:14px; padding:8px 10px; font-size:12px; font-weight:800;
-    backdrop-filter: blur(6px);
-  }
-  .panel {
-    margin: 0 16px 16px; padding: 16px; background: var(--panel); border-radius: 22px; border:1px solid var(--line); box-shadow: var(--shadow);
-  }
-  .title { font-size: 28px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 6px; }
-  .subtitle { color: var(--muted); margin: 0; line-height: 1.45; }
-  .stage-list { padding: 0 16px 18px; display:flex; flex-direction:column; gap:14px; overflow:auto; height: calc(100% - 92px); }
-  .stage-card {
-    position:relative; min-height:150px; border-radius: 22px; overflow:hidden; border:1px solid rgba(255,255,255,.12); box-shadow: var(--shadow);
-    background:#13254a;
-  }
-  .stage-card img.bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:saturate(1.08); }
-  .stage-card::after { content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(6,13,29,.82), rgba(6,13,29,.28)); }
-  .stage-content { position:relative; z-index:2; padding:18px; display:flex; flex-direction:column; gap:10px; height:100%; }
-  .stage-badge { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.14); padding:8px 10px; border-radius:999px; font-size:12px; font-weight:900; width:max-content; }
-  .stage-card h3 { margin:0; font-size:24px; }
-  .stage-card p { margin:0; color:#e6eeff; max-width:70%; line-height:1.4; }
-  .stage-meta { margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:10px; }
-  .stars { color:#ffd43b; font-size:18px; letter-spacing:2px; }
-  .lock-layer { position:absolute; inset:0; z-index:5; background: rgba(5,8,18,.64); backdrop-filter: blur(2px); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; }
-  .lock-layer span { font-size:40px; }
-
-  #gameScreen { background:#08142d; }
-  .hud {
-    position:relative; z-index:4; display:grid; grid-template-columns: 1fr auto; gap:12px; padding: 14px 14px 10px;
-  }
-  .hud-left { display:grid; gap:10px; }
-  .hud-right { display:grid; gap:10px; justify-items:end; }
-  .hud-card {
-    background: rgba(5,12,30,.7); border:1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 10px 12px; box-shadow: var(--shadow); backdrop-filter: blur(8px);
-  }
-  .hud-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .tag { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:900; background: rgba(255,255,255,.1); padding:6px 8px; border-radius:999px; }
-  .hearts { font-size:18px; letter-spacing:2px; }
-  .mission-text { font-weight: 800; }
-  .small-text { color: var(--muted); font-size: 12px; }
-  .game-stage-label { font-size: 22px; font-weight: 900; }
-  .playfield-wrap { position:absolute; inset:0; }
-  .playfield-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  .playfield-overlay { position:absolute; inset:0; background: linear-gradient(180deg, rgba(2,8,22,.25), rgba(2,8,22,.05) 30%, rgba(2,8,22,.22) 85%, rgba(2,8,22,.65)); }
-  #gameArea {
-    position:absolute; left:0; right:0; top:0; bottom:0; overflow:hidden;
-  }
-  .hero-wrap { position:absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index:3; width: 170px; pointer-events:none; filter: drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
-  .hero-wrap img { width:100%; display:block; }
-  .enemy {
-    position:absolute; width:78px; height:78px; background: transparent; padding:0; border:none; z-index:5; user-select:none; touch-action:manipulation;
-    transform-origin:center; will-change: transform, top, left;
-    filter: drop-shadow(0 10px 12px rgba(0,0,0,.28));
-  }
-  .enemy img { width:100%; height:100%; object-fit:contain; display:block; }
-  .enemy.gold { width:84px; height:84px; }
-  .enemy.lightning { width:88px; height:88px; }
-  .tap-pop {
-    position:absolute; font-size:22px; font-weight:900; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.4); pointer-events:none; z-index:8; animation: floatUp .55s ease-out forwards;
-  }
-  @keyframes floatUp { from { opacity:1; transform:translate(-50%,0) scale(1); } to { opacity:0; transform:translate(-50%,-40px) scale(1.25);} }
-  .warning {
-    position:absolute; left:50%; top:140px; transform:translateX(-50%); z-index:8; background: rgba(255,77,109,.95); color:#fff; font-weight:900; padding:12px 16px; border-radius:16px; box-shadow:var(--shadow); display:none;
-  }
-  .warning.show { display:block; animation: pulse .7s ease 3; }
-  @keyframes pulse { 0%,100%{ transform:translateX(-50%) scale(1);} 50%{ transform:translateX(-50%) scale(1.06);} }
-
-  .boss-area {
-    position:absolute; top:130px; left:50%; transform:translateX(-50%); width:min(84%, 320px); z-index:7; display:none;
-  }
-  .boss-area.active { display:block; }
-  .boss-panel { background: rgba(10,17,35,.62); border:1px solid rgba(255,255,255,.14); border-radius: 22px; padding: 14px; box-shadow: var(--shadow); backdrop-filter: blur(10px); text-align:center; }
-  .boss-name { font-size:18px; font-weight:900; margin:0 0 8px; }
-  .boss-image {
-    width: 220px; max-width: 100%; display:block; margin:0 auto 8px; cursor:pointer; user-select:none; touch-action:manipulation;
-    filter: drop-shadow(0 16px 18px rgba(0,0,0,.35));
-  }
-  .boss-hpbar { width:100%; height:16px; background: rgba(255,255,255,.12); border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,.1); }
-  .boss-hpfill { height:100%; width:100%; background: linear-gradient(90deg, #ff5a5a, #ffb000); }
-  .boss-hptxt { font-size:12px; color:var(--muted); margin-top:6px; font-weight:800; }
-  .fever-badge {
-    position:absolute; bottom:170px; left:50%; transform:translateX(-50%); z-index:8; background: linear-gradient(90deg, #ff3cac, #784bff, #2b86ff); color:#fff; font-weight:900; padding:10px 16px; border-radius:999px; display:none; box-shadow:var(--shadow);
-  }
-  .fever-badge.active { display:block; }
-  .bottom-controls { position:absolute; bottom: 8px; left: 8px; right: 8px; display:flex; justify-content:space-between; gap:8px; z-index:4; }
-  .bottom-pill { background: rgba(5,12,30,.7); color:#fff; border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:8px 10px; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:800; }
-
-  .result-wrap { padding: 16px; height:100%; overflow:auto; }
-  .result-hero { display:flex; justify-content:center; margin-top:4px; }
-  .result-hero img { width: 160px; filter: drop-shadow(0 16px 18px rgba(0,0,0,.35)); }
-  .score-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:10px; margin: 16px 0; }
-  .score-box { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius:18px; padding: 14px; }
-  .score-box .label { color: var(--muted); font-size: 12px; font-weight:800; }
-  .score-box .value { font-size: 22px; font-weight: 900; margin-top: 6px; }
-
-  .modal-backdrop {
-    position:absolute; inset:0; background: rgba(0,0,0,.52); z-index:20; display:none; align-items:flex-end; justify-content:center; padding: 18px;
-  }
-  .modal-backdrop.show { display:flex; }
-  .modal {
-    width:100%; max-height:92%; overflow:auto; background: linear-gradient(180deg, rgba(12,27,57,.98), rgba(8,20,45,.98)); border-radius: 24px; border:1px solid rgba(255,255,255,.12); box-shadow: var(--shadow); padding: 18px;
-  }
-  .modal h3 { margin:0; font-size:24px; }
-  .modal .sub { color: var(--muted); margin:6px 0 16px; line-height:1.45; }
-  .list { display:grid; gap:10px; }
-  .list-item { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 14px; }
-  .list-item.done { outline: 2px solid rgba(35,201,107,.45); }
-  .settings-grid { display:grid; gap:12px; }
-  .setting-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding: 14px; background: rgba(255,255,255,.08); border-radius: 18px; border:1px solid rgba(255,255,255,.1); }
-  .chip-group { display:flex; gap:8px; flex-wrap:wrap; }
-  .chip { padding:10px 12px; border-radius:999px; background: rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.1); font-weight:800; }
-  .chip.active { background: linear-gradient(180deg, #34a0ff, #1168ff); }
-  .toggle {
-    width: 56px; height:32px; border-radius:999px; background: rgba(255,255,255,.14); position:relative; border:1px solid rgba(255,255,255,.1);
-  }
-  .toggle::after { content:""; position:absolute; width:24px; height:24px; border-radius:50%; background:#fff; top:3px; left:4px; transition:all .2s ease; }
-  .toggle.on { background: linear-gradient(180deg, #24d36c, #0db85a); }
-  .toggle.on::after { left:27px; }
-  .modal-actions { display:flex; gap:10px; margin-top:18px; }
-  .footer-note { color: var(--muted); font-size: 12px; text-align:center; margin-top: 14px; line-height:1.5; }
-
-  @media (max-width: 430px) {
-    body { padding: 0; }
-    .app { width: 100%; height: 100vh; border-radius: 0; }
-  }
+:root{--navy:#07142f;--blue:#1687ff;--cyan:#27dcff;--yellow:#ffd12d;--orange:#ff9300;--pink:#ff4fa7;--red:#ff405d;--green:#2bd979;--panel:rgba(7,17,42,.88);--line:rgba(255,255,255,.14);--text:#fff;--muted:#bcd0ff}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030817;font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff;touch-action:manipulation;user-select:none;-webkit-user-select:none}button{font:inherit;cursor:pointer}
+body{display:flex;align-items:center;justify-content:center}.app{position:relative;width:min(100vw,430px);height:min(100vh,764px);aspect-ratio:941/1672;overflow:hidden;background:#07142f;box-shadow:0 0 60px rgba(0,0,0,.55)}
+@media(max-width:430px){.app{width:100vw;height:100vh;aspect-ratio:auto}}
+.screen{position:absolute;inset:0;display:none}.screen.active{display:block}.hidden{display:none!important}.safeTop{padding-top:max(10px,env(safe-area-inset-top))}.safeBottom{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+/* home */
+.home{background:#05153a}.homeArt{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.homeTop{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;z-index:4}.tiny{border:1px solid rgba(255,255,255,.15);background:rgba(1,8,25,.62);color:#fff;border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;backdrop-filter:blur(8px)}
+.homeHot{position:absolute;z-index:5;border:0;background:transparent}.homeHot.play{left:8%;right:8%;top:73%;height:11%}.homeHot.ach{left:4%;width:29%;top:85%;height:8%}.homeHot.score{left:35.5%;width:29%;top:85%;height:8%}.homeHot.settings{right:4%;width:29%;top:85%;height:8%}
+/* shared */
+.topbar{position:relative;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:12px 12px 8px}.topgroup{display:flex;gap:7px}.pill{border:1px solid rgba(255,255,255,.14);background:rgba(6,16,41,.78);color:#fff;border-radius:999px;padding:9px 11px;font-size:12px;font-weight:900;box-shadow:0 5px 16px rgba(0,0,0,.16);backdrop-filter:blur(8px)}.primary{border:0;background:linear-gradient(180deg,#ffe14c,#ffac00);color:#2c1b00;border-radius:15px;padding:13px 16px;font-weight:1000;box-shadow:0 8px 18px rgba(255,172,0,.28)}.blue{border:0;background:linear-gradient(180deg,#38b9ff,#1472ff);color:#fff;border-radius:15px;padding:13px 16px;font-weight:1000;box-shadow:0 8px 18px rgba(20,114,255,.28)}.ghost{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.08);color:#fff;border-radius:15px;padding:12px 14px;font-weight:900}.danger{border:0;background:linear-gradient(180deg,#ff6a7f,#f12e4a);color:#fff;border-radius:15px;padding:12px 14px;font-weight:900}
+/* lobby */
+#lobbyScreen{background:linear-gradient(180deg,#0a1c47,#06112c)}.lobbyHead{padding:3px 14px 11px;text-align:center}.logoTxt{font-size:30px;line-height:.95;font-weight:1000;letter-spacing:-1.5px;text-shadow:0 4px 0 #091636}.logoTxt b{color:#ffd12d}.sub{color:var(--muted);font-size:12px;line-height:1.45;margin-top:7px}.challenge{margin:0 12px 10px;padding:11px 12px;border-radius:17px;background:linear-gradient(135deg,rgba(255,190,30,.19),rgba(255,72,132,.13));border:1px solid rgba(255,213,68,.25);display:flex;gap:10px;align-items:center}.challengeIcon{font-size:25px}.challenge b{font-size:13px}.challenge span{font-size:11px;color:#e4ecff}.stageList{height:calc(100% - 205px);overflow:auto;padding:0 12px 18px;display:grid;gap:10px}.stageCard{position:relative;min-height:142px;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.14);box-shadow:0 14px 26px rgba(0,0,0,.22)}.stageBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.stageShade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,8,23,.88),rgba(3,8,23,.35) 65%,rgba(3,8,23,.1))}.stageInfo{position:relative;z-index:2;padding:13px;height:100%;display:flex;flex-direction:column}.stageNo{font-size:11px;font-weight:1000;color:#ffd12d}.stageInfo h3{margin:2px 0 4px;font-size:20px;letter-spacing:-.6px}.stageInfo p{margin:0;max-width:72%;font-size:11px;line-height:1.35;color:#e5ecff}.stageBottom{margin-top:auto;display:flex;align-items:center;justify-content:space-between}.stars{font-size:14px}.stageLock{position:absolute;inset:0;z-index:5;background:rgba(1,5,16,.68);display:flex;align-items:center;justify-content:center;flex-direction:column;font-weight:900}.stageLock span{font-size:32px}
+/* gameplay */
+#gameScreen{background:#07142f}.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(1,8,23,.34),rgba(1,8,23,.02) 30%,rgba(1,8,23,.24) 70%,rgba(1,8,23,.78))}.hud{position:absolute;z-index:20;left:9px;right:9px;top:max(8px,env(safe-area-inset-top));display:flex;justify-content:space-between;gap:8px;pointer-events:none}.hudCol{display:grid;gap:5px}.hudChip{background:rgba(4,13,35,.78);border:1px solid rgba(255,255,255,.15);box-shadow:0 7px 18px rgba(0,0,0,.22);backdrop-filter:blur(8px);border-radius:13px;padding:7px 9px;font-size:11px;font-weight:900}.hudRight{align-items:end}.hud button{pointer-events:auto}.life{letter-spacing:1px}.missionPanel{position:absolute;z-index:18;top:max(78px,calc(env(safe-area-inset-top) + 74px));left:50%;transform:translateX(-50%);width:min(82%,330px);background:rgba(3,12,31,.73);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(8px);border-radius:15px;padding:8px 10px;text-align:center}.missionPanel b{font-size:12px}.missionPanel span{display:block;font-size:10px;color:#cfe1ff;margin-top:2px}.progress{height:6px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden;margin-top:6px}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de5ff,#ffd12d);border-radius:99px;transition:width .16s}
+.playArea{position:absolute;inset:0;overflow:hidden}.hero{position:absolute;z-index:4;left:50%;bottom:16px;transform:translateX(-50%);width:138px;pointer-events:none;filter:drop-shadow(0 12px 13px rgba(0,0,0,.35))}.hero img{width:100%;display:block}.timingRing{position:absolute;z-index:3;left:50%;bottom:68px;transform:translateX(-50%);width:240px;height:82px;background:url("assets/ui-timing-ring.png") center/contain no-repeat;pointer-events:none;filter:drop-shadow(0 0 18px rgba(54,224,255,.25))}.timingRing::after{content:"PERFECT ZONE";position:absolute;left:50%;top:-18px;transform:translateX(-50%);font-size:10px;font-weight:1000;color:#7ff0ff;text-shadow:0 2px 6px #000;letter-spacing:.4px}
+.enemy{position:absolute;z-index:8;border:0;background:transparent;padding:0;filter:drop-shadow(0 8px 10px rgba(0,0,0,.3));touch-action:manipulation}.enemy img{width:100%;height:100%;object-fit:contain;pointer-events:none}.enemy .badge{position:absolute;right:-5px;top:-5px;border-radius:999px;background:#08142f;color:#fff;font-size:9px;font-weight:1000;padding:4px 6px;border:1px solid rgba(255,255,255,.25)}.enemy.shielded::before{content:"";position:absolute;inset:-7px;border:5px solid rgba(70,193,255,.75);border-radius:50%;box-shadow:0 0 17px rgba(70,193,255,.68);pointer-events:none}.enemy.jump{animation:wobble .6s ease-in-out infinite alternate}@keyframes wobble{to{filter:drop-shadow(0 8px 10px rgba(0,0,0,.3)) hue-rotate(55deg)}}.miniEnemy{width:48px!important;height:48px!important}.judgment{position:absolute;z-index:30;pointer-events:none;font-size:28px;font-weight:1000;font-style:italic;text-shadow:0 4px 0 rgba(3,11,30,.8),0 7px 14px rgba(0,0,0,.35);animation:judge .7s ease-out forwards}@keyframes judge{0%{opacity:0;transform:translate(-50%,0) scale(.45) rotate(-8deg)}20%{opacity:1;transform:translate(-50%,-10px) scale(1.15) rotate(2deg)}100%{opacity:0;transform:translate(-50%,-65px) scale(.92)}}.comboBurst{position:absolute;z-index:31;left:50%;top:34%;transform:translate(-50%,-50%);font-size:34px;font-weight:1000;color:#ffd12d;text-shadow:0 5px 0 #721600,0 10px 25px rgba(0,0,0,.35);pointer-events:none;animation:comboBurst .9s ease-out forwards}@keyframes comboBurst{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-85%) scale(.9)}}
+.skillBar{position:absolute;z-index:16;left:50%;bottom:max(9px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:7px}.skillIcon{width:48px;height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(4,13,35,.78);box-shadow:0 6px 16px rgba(0,0,0,.2);display:grid;place-items:center;font-size:20px;position:relative;overflow:hidden}.skillIcon img{width:100%;height:100%;object-fit:cover;border-radius:50%}.skillIcon small{position:absolute;right:-3px;top:-5px;background:#ff4f6f;color:#fff;border-radius:99px;min-width:18px;padding:2px 4px;font-size:8px;font-weight:1000}.fever{position:absolute;z-index:22;left:50%;bottom:63px;transform:translateX(-50%);padding:7px 12px;border-radius:99px;background:linear-gradient(90deg,#ff4fa7,#7b4cff,#18b9ff);font-size:12px;font-weight:1000;box-shadow:0 7px 20px rgba(113,71,255,.35);display:none}.fever.on{display:block;animation:feverPulse .55s ease-in-out infinite alternate}@keyframes feverPulse{to{transform:translateX(-50%) scale(1.08)}}
+.warning{position:absolute;z-index:34;inset:0;display:none;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(255,60,73,.09),rgba(65,0,10,.45));pointer-events:none}.warning.on{display:flex;animation:warning .95s ease}.warning img{width:min(88%,360px);filter:drop-shadow(0 10px 24px rgba(0,0,0,.45))}@keyframes warning{0%,100%{opacity:0}18%,75%{opacity:1}}
+/* boss */
+.bossLayer{position:absolute;z-index:12;inset:110px 0 100px;display:none;pointer-events:none}.bossLayer.on{display:block}.bossObj{position:absolute;width:210px;left:50%;top:5%;transform:translateX(-50%);pointer-events:auto;filter:drop-shadow(0 16px 18px rgba(0,0,0,.42));transition:filter .15s}.bossObj img{width:100%;display:block;pointer-events:none}.bossObj.vulnerable{filter:drop-shadow(0 0 23px rgba(255,217,62,.9)) drop-shadow(0 16px 18px rgba(0,0,0,.42))}.target{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:70px;height:70px;border:7px solid #ffef52;border-radius:50%;box-shadow:0 0 25px #ffb000,inset 0 0 22px #ffb000;display:none;pointer-events:none}.bossObj.vulnerable .target{display:block;animation:targetPulse .42s ease-in-out infinite alternate}@keyframes targetPulse{to{transform:translate(-50%,-50%) scale(1.13)}}.bossHud{position:absolute;z-index:15;left:50%;top:103px;transform:translateX(-50%);width:min(84%,330px);text-align:center;background:rgba(4,12,30,.78);border:1px solid rgba(255,255,255,.13);border-radius:15px;padding:8px 10px;display:none}.bossHud.on{display:block}.bossHud b{font-size:12px}.hpbar{height:9px;background:rgba(255,255,255,.13);border-radius:99px;overflow:hidden;margin-top:5px}.hpbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff2d59,#ffad00);border-radius:99px;transition:width .12s}.bossMsg{font-size:9px;color:#ffd8a2;margin-top:4px}.seqLayer{position:absolute;z-index:18;inset:150px 18px 100px;pointer-events:none}.seqTarget{position:absolute;width:58px;height:58px;border-radius:50%;border:4px solid #f4e04b;background:rgba(10,25,65,.82);color:#fff;display:grid;place-items:center;font-size:21px;font-weight:1000;pointer-events:auto;box-shadow:0 0 18px rgba(244,224,75,.65);animation:seqPulse .6s ease-in-out infinite alternate}@keyframes seqPulse{to{transform:scale(1.12)}}.dangerZone{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,46,72,.75),rgba(255,46,72,.08) 68%,transparent 70%);border:3px solid rgba(255,79,96,.75);pointer-events:auto;animation:dangerPulse .5s ease-in-out infinite alternate}@keyframes dangerPulse{to{transform:scale(1.08)}}
+/* modals */
+.modalBack{position:absolute;z-index:60;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(5px)}.modalBack.on{display:flex}.modal{width:100%;max-height:90%;overflow:auto;border-radius:22px;background:linear-gradient(180deg,#10275b,#07142f);border:1px solid rgba(255,255,255,.15);padding:17px;box-shadow:0 22px 50px rgba(0,0,0,.42)}.modal h2{margin:0;font-size:24px}.modal p{font-size:12px;color:#ccdcff;line-height:1.45}.choiceGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.skillCard{border:2px solid rgba(255,255,255,.15);border-radius:18px;background:rgba(255,255,255,.08);color:#fff;padding:12px 7px;text-align:center;min-height:150px}.skillCard .ico{display:grid;place-items:center;min-height:52px}.skillCard .ico img{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.2))}.skillCard b{display:block;font-size:12px;margin-top:5px}.skillCard span{display:block;font-size:9px;line-height:1.35;color:#cddcff;margin-top:6px}.skillCard.selected{border-color:#ffd12d;box-shadow:0 0 20px rgba(255,209,45,.32)}.settingRow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px;border-radius:15px;background:rgba(255,255,255,.07);margin-top:8px}.chipRow{display:flex;gap:5px}.chip{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:99px;padding:8px 9px;font-size:10px;font-weight:900}.chip.on{background:linear-gradient(180deg,#35b9ff,#166eff)}.toggle{width:52px;height:29px;border:0;border-radius:99px;background:rgba(255,255,255,.15);position:relative}.toggle:after{content:"";position:absolute;left:3px;top:3px;width:23px;height:23px;background:#fff;border-radius:50%;transition:.2s}.toggle.on{background:#22c96c}.toggle.on:after{left:26px}.modalActions{display:flex;gap:8px;margin-top:13px}.modalActions button{flex:1}.scoreRows{display:grid;gap:6px}.scoreRow{display:flex;justify-content:space-between;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.07);font-size:11px}.dailyBox{padding:12px;border-radius:15px;background:linear-gradient(135deg,rgba(255,203,42,.15),rgba(255,69,127,.1));border:1px solid rgba(255,207,66,.2)}
+/* result */
+#resultScreen{background:radial-gradient(circle at top,#153c83,#07142f 60%)}.resultWrap{height:calc(100% - 56px);overflow:auto;padding:4px 12px 18px}.resultHero{text-align:center}.resultHero img{width:150px;filter:drop-shadow(0 14px 15px rgba(0,0,0,.3))}.resultTitle{text-align:center;font-size:30px;font-weight:1000;color:#ffd12d;text-shadow:0 4px 0 #5b2500;margin:0}.resultSub{text-align:center;font-size:11px;color:#cbdcff;margin:6px 0 11px}.scoreBig{text-align:center;font-size:50px;font-weight:1000}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.stat{border-radius:15px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:10px}.stat small{display:block;font-size:9px;color:#bcd0ff}.stat b{display:block;font-size:19px;margin-top:3px}.rankBox{margin-top:9px;padding:10px;border-radius:15px;background:rgba(255,255,255,.07);font-size:11px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
 </style>
-</head>
-<body>
-<div class="app" id="app">
-  <section class="screen active" id="homeScreen">
-    <div class="home-wrap" id="homeWrap">
-      <img class="home-art" src="assets/start-screen.png" alt="Bitter Hero 시작 화면" />
-      <div class="home-linkbar">
-        <button class="icon-chip" id="shareHomeBtn">공유</button>
-        <button class="icon-chip" id="booksHomeBtn">BitterBooks</button>
-      </div>
-      <button class="hotspot" id="homeStartHotspot" aria-label="게임 시작" style="left:7%; width:86%; top:72.2%; height:11.2%;"></button>
-      <button class="hotspot" id="homeAchHotspot" aria-label="업적" style="left:3%; width:30%; top:85.0%; height:11%;"></button>
-      <button class="hotspot" id="homeScoreHotspot" aria-label="점수판" style="left:35%; width:30%; top:85.0%; height:11%;"></button>
-      <button class="hotspot" id="homeSettingsHotspot" aria-label="설정" style="left:67%; width:30%; top:85.0%; height:11%;"></button>
-    </div>
-  </section>
-
-  <section class="screen" id="stageSelectScreen">
-    <div class="topbar">
-      <button class="pill-btn" data-go-home>← 홈</button>
-      <div class="btn-row">
-        <button class="pill-btn" id="shareLobbyBtn">공유</button>
-        <button class="pill-btn" id="booksLobbyBtn">BitterBooks</button>
-      </div>
-    </div>
-    <div class="panel" style="margin-top:0;">
-      <h2 class="title">STAGE SELECT</h2>
-      <p class="subtitle">3단계 미션을 클리어하고 보스를 쓰러뜨리면 다음 스테이지가 열립니다. 설정에서 난이도와 사운드를 조절할 수 있습니다.</p>
-    </div>
-    <div class="stage-list" id="stageList"></div>
-  </section>
-
-  <section class="screen" id="gameScreen">
-    <div class="hud">
-      <div class="hud-left">
-        <div class="hud-card">
-          <div class="hud-row" style="justify-content:space-between;">
-            <div class="game-stage-label" id="stageLabel">STAGE 1</div>
-            <div class="tag">점수 <span id="scoreValue">0</span></div>
-          </div>
-          <div class="hud-row" style="margin-top:8px; justify-content:space-between;">
-            <div class="hearts" id="heartsView">❤️❤️❤️</div>
-            <div class="small-text">최고 <span id="bestStageScore">0</span></div>
-          </div>
-        </div>
-        <div class="hud-card">
-          <div class="mission-text" id="missionText">손가락 15개 막기</div>
-          <div class="hud-row" style="margin-top:8px; justify-content:space-between;">
-            <div class="small-text">진행도</div>
-            <div class="tag"><span id="missionCount">0</span>/<span id="missionTarget">15</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="hud-right">
-        <div class="hud-card"><div class="tag">⏱ <span id="timeValue">00:00</span></div></div>
-        <div class="btn-row">
-          <button class="pill-btn" id="pauseBtn">일시정지</button>
-          <button class="pill-btn" data-go-home>홈</button>
-        </div>
-      </div>
-    </div>
-    <div class="playfield-wrap">
-      <img class="playfield-bg" id="playfieldBg" src="" alt="stage background">
-      <div class="playfield-overlay"></div>
-      <div id="gameArea"></div>
-      <div class="warning" id="warningBox">⚠️ BOSS 등장!</div>
-      <div class="fever-badge" id="feverBadge">FEVER TIME!</div>
-      <div class="boss-area" id="bossArea">
-        <div class="boss-panel">
-          <p class="boss-name" id="bossName">보스</p>
-          <img class="boss-image" id="bossImage" src="" alt="boss image" />
-          <div class="boss-hpbar"><div class="boss-hpfill" id="bossHpFill"></div></div>
-          <div class="boss-hptxt">HP <span id="bossHpText">0 / 0</span></div>
-        </div>
-      </div>
-      <div class="hero-wrap"><img id="heroImage" src="assets/hero.png" alt="hero" /></div>
-      <div class="bottom-controls">
-        <div class="bottom-pill">콤보 <span id="comboValue">0</span></div>
-        <div class="bottom-pill">난이도 <span id="difficultyView">보통</span></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="screen" id="resultScreen">
-    <div class="topbar">
-      <button class="pill-btn" data-go-home>← 홈</button>
-      <div class="btn-row">
-        <button class="pill-btn" id="shareResultBtn">공유</button>
-        <button class="pill-btn" id="booksResultBtn">BitterBooks</button>
-      </div>
-    </div>
-    <div class="result-wrap">
-      <div class="panel" style="margin:0; text-align:center;">
-        <div class="result-hero"><img id="resultHeroImage" src="assets/hero.png" alt="result hero"></div>
-        <h2 class="title" id="resultTitle" style="margin-top:8px;">STAGE CLEAR!</h2>
-        <p class="subtitle" id="resultMessage">비터히어로가 손가락 왕국을 막아냈어요.</p>
-        <div class="score-grid">
-          <div class="score-box"><div class="label">획득 점수</div><div class="value" id="resultScore">0</div></div>
-          <div class="score-box"><div class="label">클리어 시간</div><div class="value" id="resultTime">00:00</div></div>
-          <div class="score-box"><div class="label">최고 콤보</div><div class="value" id="resultCombo">0</div></div>
-          <div class="score-box"><div class="label">획득 스타</div><div class="value" id="resultStars">⭐</div></div>
-        </div>
-        <div class="btn-row" style="display:grid; grid-template-columns:1fr 1fr; margin-top:14px;">
-          <button class="primary-btn" id="retryBtn">다시 도전</button>
-          <button class="secondary-btn" id="nextStageBtn">다음 스테이지</button>
-        </div>
-        <div class="btn-row" style="display:grid; grid-template-columns:1fr 1fr; margin-top:10px;">
-          <button class="ghost-btn" id="stageSelectBtn">스테이지 선택</button>
-          <button class="ghost-btn" id="shareAgainBtn">결과 공유</button>
-        </div>
-        <div class="footer-note">공유 링크는 <strong>https://game.bitterbooks.com/</strong> 으로 설정되어 있습니다.</div>
-      </div>
-    </div>
-  </section>
-
-  <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal" id="modal"></div>
-  </div>
+</head><body><div class="app" id="app">
+<section id="homeScreen" class="screen active home">
+<img class="homeArt" src="assets/start-screen.png" alt="BITTER HERO">
+<div class="homeTop"><button class="tiny" id="soundQuick">🔊</button><button class="tiny" id="shareQuick">공유</button></div>
+<button class="homeHot play" id="playHot" aria-label="게임 시작"></button><button class="homeHot ach" id="achHot" aria-label="업적"></button><button class="homeHot score" id="scoreHot" aria-label="점수판"></button><button class="homeHot settings" id="settingHot" aria-label="설정"></button>
+</section>
+<section id="lobbyScreen" class="screen">
+<div class="topbar safeTop"><button class="pill" data-home>← 홈</button><div class="topgroup"><button class="pill" id="dailyBtn">오늘의 도전</button><button class="pill" id="settingsBtn">설정</button></div></div>
+<div class="lobbyHead"><div class="logoTxt">BITTER <b>HERO V7</b></div><div class="sub">TAP · TIMING · SKILL · BOSS PATTERN</div></div>
+<div class="challenge"><div class="challengeIcon">👑</div><div><b id="dailyTitle">오늘의 도전</b><br><span id="dailyDesc">불러오는 중...</span></div></div>
+<div id="stageList" class="stageList"></div>
+</section>
+<section id="gameScreen" class="screen">
+<img id="gameBg" class="bg" src="assets/stage1-bg.png"><div class="shade"></div><div id="playArea" class="playArea"></div>
+<div class="hud"><div class="hudCol"><div class="hudChip"><b id="stageName">STAGE 1</b> · <span id="score">0</span></div><div class="hudChip life" id="life">❤️❤️❤️</div></div><div class="hudCol hudRight"><div class="hudChip">🔥 <span id="combo">0</span> COMBO</div><button class="pill" id="pauseBtn">Ⅱ</button></div></div>
+<div class="missionPanel"><b id="missionText">미션</b><span id="missionCount">0 / 0</span><div class="progress"><i id="missionFill"></i></div></div>
+<div id="timingRing" class="timingRing"></div><div class="hero"><img src="assets/hero.png"></div><div id="fever" class="fever">🔥 BITTER FEVER · x2</div><div id="skillBar" class="skillBar"></div>
+<div id="bossHud" class="bossHud"><b id="bossName">BOSS</b><div class="hpbar"><i id="bossHp"></i></div><div id="bossMsg" class="bossMsg">TARGET을 노리세요!</div></div>
+<div id="bossLayer" class="bossLayer"><button id="bossObj" class="bossObj"><img id="bossImg" src="assets/boss-stage1.png"><i class="target"></i></button></div><div id="seqLayer" class="seqLayer"></div>
+<div id="warning" class="warning"><img src="assets/ui-dodge.png" alt="warning"></div>
+</section>
+<section id="resultScreen" class="screen"><div class="topbar safeTop"><button class="pill" data-home>← 홈</button><button class="pill" id="shareResult">공유</button></div><div class="resultWrap"><div class="resultHero"><img src="assets/hero.png"></div><h1 id="resultTitle" class="resultTitle">STAGE CLEAR!</h1><div id="resultSub" class="resultSub"></div><div id="resultScore" class="scoreBig">0</div><div class="stats"><div class="stat"><small>MAX COMBO</small><b id="statCombo">0</b></div><div class="stat"><small>PERFECT</small><b id="statPerfect">0</b></div><div class="stat"><small>GOOD</small><b id="statGood">0</b></div><div class="stat"><small>BOSS TIME</small><b id="statBossTime">—</b></div></div><div id="rankBox" class="rankBox">랭킹 확인 중...</div><div class="actions"><button class="primary" id="retry">다시 하기</button><button class="blue" id="next">다음 스테이지</button><button class="ghost" id="selectStage">스테이지 선택</button><button class="ghost" id="books">비터북스</button></div></div></section>
+<div id="modalBack" class="modalBack"><div id="modal" class="modal"></div></div>
 </div>
-
 <script>
-(() => {
-  const GAME_URL = 'https://game.bitterbooks.com/';
-  const BOOKS_URL = 'https://bitterbooks.com/';
-
-  const ASSETS = {
-    start: 'assets/start-screen.png',
-    hero: 'assets/hero.png',
-    stageBg: {
-      1: 'assets/stage1-bg.png',
-      2: 'assets/stage2-bg.png',
-      3: 'assets/stage3-bg.png'
-    },
-    enemies: {
-      normal: 'assets/enemy-normal.png',
-      lightning: 'assets/enemy-lightning.png',
-      gold: 'assets/enemy-gold.png'
-    },
-    bosses: {
-      1: 'assets/boss-stage1.png',
-      2: 'assets/boss-stage2.png',
-      3: 'assets/boss-stage3.png'
-    }
-  };
-
-  const STAGES = {
-    1: { id:1, name:'말랑손가락 놀이터', desc:'기본 손가락 15개를 막아내고 첫 보스를 쓰러뜨리세요.', missionText:'손가락 15개 막기', target:15, bg:ASSETS.stageBg[1], boss:'엄지대장', bossHp:{easy:18, normal:24, hard:30}, stars:[900, 1300, 1700] },
-    2: { id:2, name:'번개손가락 시티', desc:'번개손가락 10개를 처치하면 천둥왕이 등장합니다.', missionText:'번개손가락 10개 막기', target:10, bg:ASSETS.stageBg[2], boss:'썬더 엄지왕', bossHp:{easy:26, normal:34, hard:44}, stars:[1300, 1800, 2300] },
-    3: { id:3, name:'손가락 왕국의 성', desc:'총 25개를 처치한 뒤 끝판왕 쓴맛왕을 무너뜨리세요.', missionText:'총 25개 처치 후 끝판왕', target:25, bg:ASSETS.stageBg[3], boss:'쓴맛왕', bossHp:{easy:34, normal:44, hard:56}, stars:[1800, 2500, 3300] }
-  };
-
-  const DIFFICULTY = {
-    easy: { name:'쉬움', speed:0.82, spawn:1.16, points:0.95, boss:0.9, hearts:3 },
-    normal: { name:'보통', speed:1, spawn:1, points:1, boss:1, hearts:3 },
-    hard: { name:'도전', speed:1.18, spawn:0.86, points:1.2, boss:1.12, hearts:2 }
-  };
-
-  const els = {
-    home: document.getElementById('homeScreen'),
-    select: document.getElementById('stageSelectScreen'),
-    game: document.getElementById('gameScreen'),
-    result: document.getElementById('resultScreen'),
-    stageList: document.getElementById('stageList'),
-    playfieldBg: document.getElementById('playfieldBg'),
-    stageLabel: document.getElementById('stageLabel'),
-    scoreValue: document.getElementById('scoreValue'),
-    heartsView: document.getElementById('heartsView'),
-    timeValue: document.getElementById('timeValue'),
-    missionText: document.getElementById('missionText'),
-    missionCount: document.getElementById('missionCount'),
-    missionTarget: document.getElementById('missionTarget'),
-    bestStageScore: document.getElementById('bestStageScore'),
-    difficultyView: document.getElementById('difficultyView'),
-    comboValue: document.getElementById('comboValue'),
-    warningBox: document.getElementById('warningBox'),
-    feverBadge: document.getElementById('feverBadge'),
-    gameArea: document.getElementById('gameArea'),
-    bossArea: document.getElementById('bossArea'),
-    bossName: document.getElementById('bossName'),
-    bossImage: document.getElementById('bossImage'),
-    bossHpFill: document.getElementById('bossHpFill'),
-    bossHpText: document.getElementById('bossHpText'),
-    resultTitle: document.getElementById('resultTitle'),
-    resultMessage: document.getElementById('resultMessage'),
-    resultScore: document.getElementById('resultScore'),
-    resultTime: document.getElementById('resultTime'),
-    resultCombo: document.getElementById('resultCombo'),
-    resultStars: document.getElementById('resultStars'),
-    nextStageBtn: document.getElementById('nextStageBtn'),
-    modalBackdrop: document.getElementById('modalBackdrop'),
-    modal: document.getElementById('modal'),
-    heroImage: document.getElementById('heroImage'),
-    resultHeroImage: document.getElementById('resultHeroImage')
-  };
-
-  const storageKey = 'bitterHeroV6';
-  const defaultSave = {
-    unlockedStage: 1,
-    difficulty: 'normal',
-    soundOn: true,
-    musicOn: true,
-    bestScores: {1:0,2:0,3:0},
-    bestStars: {1:0,2:0,3:0},
-    clears: [],
-    totalScore: 0,
-    totalKills: 0,
-    allClear: false,
-    history: []
-  };
-  let save = loadSave();
-
-  const state = {
-    currentScreen: 'home',
-    stage: 1,
-    running: false,
-    paused: false,
-    lastTs: 0,
-    elapsed: 0,
-    spawnTimer: 0,
-    combo: 0,
-    maxCombo: 0,
-    score: 0,
-    hearts: 3,
-    mission: 0,
-    enemies: [],
-    enemyId: 0,
-    boss: null,
-    bossMode: false,
-    resultStatus: 'clear',
-    fever: false,
-    feverEnd: 0,
-    bossSpawnTicker: 0,
-    lastTapAt: 0,
-    tapStreak: 0,
-  };
-
-  const screens = { home: els.home, select: els.select, game: els.game, result: els.result };
-
-  class SoundEngine {
-    constructor() {
-      this.ctx = null;
-      this.loop = null;
-      this.step = 0;
-      this.mode = null;
-      this.musicOn = true;
-      this.soundOn = true;
-    }
-    ensure() {
-      if (this.ctx) return;
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      this.ctx = new AC();
-    }
-    unlock() {
-      this.ensure();
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-    }
-    setSettings(musicOn, soundOn) {
-      this.musicOn = musicOn;
-      this.soundOn = soundOn;
-      if (!musicOn) this.stopMusic();
-    }
-    playTone(freq, duration=0.18, type='sine', volume=0.03, when=0) {
-      if (!this.ctx) return;
-      const now = this.ctx.currentTime + when;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = type;
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-      osc.connect(gain).connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + duration + 0.03);
-    }
-    sfx(kind) {
-      if (!this.soundOn) return;
-      this.unlock();
-      const map = {
-        tap: () => { this.playTone(720, .09, 'triangle', .05); this.playTone(980, .06, 'triangle', .04, .03); },
-        gold: () => { this.playTone(880, .09, 'triangle', .05); this.playTone(1175, .1, 'triangle', .05, .05); },
-        miss: () => { this.playTone(180, .18, 'square', .04); },
-        boss: () => { this.playTone(160, .15, 'sawtooth', .05); this.playTone(130, .25, 'sawtooth', .04, .06); },
-        clear: () => { [784, 988, 1175].forEach((f,i)=>this.playTone(f,.14,'triangle',.05,i*.06)); },
-        fail: () => { [330, 247, 196].forEach((f,i)=>this.playTone(f,.15,'square',.04,i*.08)); }
-      };
-      map[kind]?.();
-    }
-    startMusic(mode) {
-      this.unlock();
-      if (!this.musicOn || !this.ctx) return;
-      if (this.mode === mode && this.loop) return;
-      this.stopMusic();
-      this.mode = mode;
-      this.step = 0;
-      const modes = {
-        stage1: { bpm: 132, type:'triangle', melody:[523,659,784,659,523,659,880,659], bass:[262,262,294,262] },
-        stage2: { bpm: 146, type:'square', melody:[392,523,587,698,587,523,698,784], bass:[196,196,220,196] },
-        stage3: { bpm: 126, type:'sawtooth', melody:[220,330,294,392,330,440,392,494], bass:[110,110,147,110] },
-        boss1: { bpm: 126, type:'square', melody:[196,196,262,196,294,262,196,174], bass:[98,98,98,110] },
-        boss2: { bpm: 136, type:'sawtooth', melody:[220,330,392,330,262,330,440,330], bass:[110,147,110,165] },
-        boss3: { bpm: 142, type:'sawtooth', melody:[196,247,294,330,294,247,196,165], bass:[98,123,98,82] },
-        fever: { bpm: 168, type:'triangle', melody:[784,880,988,1046,988,1175,1046,988], bass:[392,440,494,392] },
-      };
-      const conf = modes[mode] || modes.stage1;
-      const interval = 60000 / conf.bpm / 2;
-      this.loop = setInterval(() => {
-        if (!this.musicOn || !this.ctx) return;
-        const i = this.step % conf.melody.length;
-        const bi = this.step % conf.bass.length;
-        this.playTone(conf.melody[i], .16, conf.type, .035);
-        if (this.step % 2 === 0) this.playTone(conf.bass[bi], .24, 'triangle', .022);
-        this.step++;
-      }, interval);
-    }
-    stopMusic() {
-      if (this.loop) { clearInterval(this.loop); this.loop = null; }
-      this.mode = null;
-    }
-  }
-  const sound = new SoundEngine();
-  sound.setSettings(save.musicOn, save.soundOn);
-
-  function loadSave() {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return structuredClone(defaultSave);
-      return { ...structuredClone(defaultSave), ...JSON.parse(raw), bestScores:{...defaultSave.bestScores, ...(JSON.parse(raw).bestScores||{})}, bestStars:{...defaultSave.bestStars, ...(JSON.parse(raw).bestStars||{})} };
-    } catch {
-      return structuredClone(defaultSave);
-    }
-  }
-  function persist() { localStorage.setItem(storageKey, JSON.stringify(save)); }
-
-  function structuredClone(obj) { return JSON.parse(JSON.stringify(obj)); }
-  function pad(n){ return String(n).padStart(2,'0'); }
-  function formatTime(sec){ const m=Math.floor(sec/60); const s=Math.floor(sec%60); return `${pad(m)}:${pad(s)}`; }
-  function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
-  function rand(min,max){ return Math.random()*(max-min)+min; }
-
-  function goScreen(name) {
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[name].classList.add('active');
-    state.currentScreen = name;
-    if (name !== 'game') sound.stopMusic();
-    if (name === 'select') renderStageList();
-  }
-
-  function renderStageList() {
-    els.stageList.innerHTML = '';
-    Object.values(STAGES).forEach(stage => {
-      const unlocked = save.unlockedStage >= stage.id;
-      const card = document.createElement('div');
-      card.className = 'stage-card';
-      const stars = Number(save.bestStars[stage.id] || 0);
-      card.innerHTML = `
-        <img class="bg" src="${stage.bg}" alt="stage${stage.id} background">
-        <div class="stage-content">
-          <div class="stage-badge">STAGE ${stage.id}</div>
-          <h3>${stage.name}</h3>
-          <p>${stage.desc}</p>
-          <div class="stage-meta">
-            <div class="stars">${'⭐'.repeat(stars || 0)}${stars===0 ? '미기록' : ''}</div>
-            <button class="${unlocked ? 'secondary-btn' : 'ghost-btn'}" ${unlocked ? '' : 'disabled'}>${unlocked ? '도전하기' : '잠금'}</button>
-          </div>
-        </div>`;
-      if (!unlocked) {
-        const lock = document.createElement('div');
-        lock.className = 'lock-layer';
-        lock.innerHTML = '<span>🔒</span><div>이전 스테이지를 먼저 클리어하세요</div>';
-        card.appendChild(lock);
-      } else {
-        card.querySelector('button').addEventListener('click', () => startStage(stage.id));
-      }
-      els.stageList.appendChild(card);
-    });
-  }
-
-  function getDifficulty(){ return DIFFICULTY[save.difficulty] || DIFFICULTY.normal; }
-
-  function resetGameState(stageId) {
-    state.stage = stageId;
-    state.running = true;
-    state.paused = false;
-    state.lastTs = 0;
-    state.elapsed = 0;
-    state.spawnTimer = 0;
-    state.combo = 0;
-    state.maxCombo = 0;
-    state.score = 0;
-    state.hearts = getDifficulty().hearts;
-    state.mission = 0;
-    state.enemies = [];
-    state.enemyId = 0;
-    state.boss = null;
-    state.bossMode = false;
-    state.resultStatus = 'clear';
-    state.fever = false;
-    state.feverEnd = 0;
-    state.bossSpawnTicker = 0;
-    state.lastTapAt = 0;
-    state.tapStreak = 0;
-    els.gameArea.innerHTML = '';
-    els.bossArea.classList.remove('active');
-    els.warningBox.classList.remove('show');
-    els.feverBadge.classList.remove('active');
-  }
-
-  function startStage(stageId) {
-    sound.unlock();
-    resetGameState(stageId);
-    const stage = STAGES[stageId];
-    els.playfieldBg.src = stage.bg;
-    els.stageLabel.textContent = `STAGE ${stageId}`;
-    els.missionText.textContent = stage.missionText;
-    els.missionTarget.textContent = stage.target;
-    els.bestStageScore.textContent = save.bestScores[stageId] || 0;
-    els.difficultyView.textContent = getDifficulty().name;
-    updateHUD();
-    goScreen('game');
-    sound.startMusic(`stage${stageId}`);
-    requestAnimationFrame(gameLoop);
-  }
-
-  function updateHUD() {
-    els.scoreValue.textContent = Math.floor(state.score);
-    els.heartsView.textContent = '❤️'.repeat(state.hearts) + '🖤'.repeat(Math.max(0, 3 - state.hearts));
-    els.timeValue.textContent = formatTime(state.elapsed);
-    els.missionCount.textContent = state.mission;
-    els.comboValue.textContent = state.combo;
-  }
-
-  function createEnemy(type='normal') {
-    const rect = els.gameArea.getBoundingClientRect();
-    const size = type === 'gold' ? 84 : type === 'lightning' ? 88 : 78;
-    const difficulty = getDifficulty();
-    const el = document.createElement('button');
-    el.className = `enemy ${type}`;
-    el.innerHTML = `<img src="${ASSETS.enemies[type]}" alt="${type}">`;
-    const obj = {
-      id: ++state.enemyId,
-      type,
-      x: rand(12, Math.max(18, rect.width - size - 12)),
-      y: -size - rand(0, 50),
-      size,
-      speed: (type === 'lightning' ? rand(190, 240) : type === 'gold' ? rand(160, 210) : rand(150, 205)) * difficulty.speed,
-      el,
-      value: type === 'gold' ? 180 : type === 'lightning' ? 120 : 85,
-    };
-    el.style.left = `${obj.x}px`;
-    el.style.top = `${obj.y}px`;
-    el.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      hitEnemy(obj, ev.clientX || obj.x + obj.size/2, ev.clientY || obj.y + obj.size/2);
-    }, { passive:false });
-    state.enemies.push(obj);
-    els.gameArea.appendChild(el);
-  }
-
-  function hitEnemy(obj, px, py) {
-    const idx = state.enemies.findIndex(e => e.id === obj.id);
-    if (idx === -1) return;
-    state.enemies.splice(idx, 1);
-    obj.el.remove();
-
-    const now = performance.now();
-    if (now - state.lastTapAt < 850) state.combo += 1; else state.combo = 1;
-    state.lastTapAt = now;
-    state.maxCombo = Math.max(state.maxCombo, state.combo);
-
-    const multiplier = 1 + Math.min(0.8, (state.combo - 1) * 0.05);
-    const points = Math.round(obj.value * multiplier * getDifficulty().points);
-    state.score += points;
-    save.totalKills += 1;
-    if (obj.type === 'gold') {
-      state.score += 100;
-      sound.sfx('gold');
-      if (state.hearts < 3) state.hearts += 1;
-    } else {
-      sound.sfx('tap');
-    }
-
-    const stage = STAGES[state.stage];
-    if (!state.bossMode) {
-      if (state.stage === 2) {
-        if (obj.type === 'lightning') state.mission += 1;
-      } else {
-        state.mission += 1;
-      }
-      if (state.stage === 3 && !state.fever && state.combo >= 8) activateFever();
-      if (state.mission >= stage.target) triggerBoss();
-    }
-    popText(`+${points}`, px, py, obj.type === 'gold' ? '#ffd43b' : '#ffffff');
-    updateHUD();
-  }
-
-  function popText(text, x, y, color) {
-    const r = els.gameArea.getBoundingClientRect();
-    const d = document.createElement('div');
-    d.className = 'tap-pop';
-    d.textContent = text;
-    d.style.left = `${x - r.left}px`;
-    d.style.top = `${y - r.top}px`;
-    d.style.color = color;
-    els.gameArea.appendChild(d);
-    setTimeout(() => d.remove(), 540);
-  }
-
-  function onEnemyMiss(obj) {
-    const idx = state.enemies.findIndex(e => e.id === obj.id);
-    if (idx === -1) return;
-    state.enemies.splice(idx, 1);
-    obj.el.remove();
-    state.combo = 0;
-    state.hearts -= 1;
-    sound.sfx('miss');
-    updateHUD();
-    if (state.hearts <= 0) endStage(false);
-  }
-
-  function triggerBoss() {
-    if (state.bossMode) return;
-    state.bossMode = true;
-    state.enemies.forEach(e => e.el.remove());
-    state.enemies = [];
-    const stage = STAGES[state.stage];
-    const hp = Math.round(stage.bossHp[save.difficulty] * getDifficulty().boss);
-    state.boss = { hp, maxHp: hp, name: stage.boss, phase: 1 };
-    els.warningBox.textContent = '⚠️ BOSS 등장!';
-    els.warningBox.classList.add('show');
-    setTimeout(() => {
-      els.warningBox.classList.remove('show');
-      renderBoss();
-    }, 1200);
-    sound.sfx('boss');
-    sound.startMusic(`boss${state.stage}`);
-  }
-
-  function renderBoss() {
-    if (!state.boss) return;
-    els.bossArea.classList.add('active');
-    els.bossName.textContent = state.boss.name + (state.stage === 3 && state.boss.phase === 2 ? ' · FINAL RUSH' : '');
-    els.bossImage.src = ASSETS.bosses[state.stage];
-    const ratio = clamp(state.boss.hp / state.boss.maxHp, 0, 1);
-    els.bossHpFill.style.width = `${ratio * 100}%`;
-    els.bossHpText.textContent = `${state.boss.hp} / ${state.boss.maxHp}`;
-  }
-
-  function hitBoss(ev) {
-    if (!state.running || state.paused || !state.boss) return;
-    sound.sfx('tap');
-    const damage = state.fever ? 2 : 1;
-    state.boss.hp -= damage;
-    state.score += 26 * damage;
-    state.combo += 1;
-    state.maxCombo = Math.max(state.maxCombo, state.combo);
-    const rect = els.bossImage.getBoundingClientRect();
-    popText(`-${damage}`, ev.clientX || (rect.left+rect.width/2), ev.clientY || (rect.top+rect.height/2), '#ffcd5c');
-    if (state.stage === 3 && state.boss.phase === 1 && state.boss.hp <= Math.floor(state.boss.maxHp * 0.45)) {
-      state.boss.phase = 2;
-      els.warningBox.textContent = '🔥 FINAL RUSH!';
-      els.warningBox.classList.add('show');
-      setTimeout(()=>els.warningBox.classList.remove('show'), 900);
-      sound.startMusic('boss3');
-    }
-    if (state.boss.hp <= 0) {
-      els.bossArea.classList.remove('active');
-      state.boss = null;
-      endStage(true);
-      return;
-    }
-    renderBoss();
-    updateHUD();
-  }
-
-  function activateFever() {
-    state.fever = true;
-    state.feverEnd = state.elapsed + 8;
-    els.feverBadge.classList.add('active');
-    sound.startMusic('fever');
-  }
-  function deactivateFever() {
-    state.fever = false;
-    els.feverBadge.classList.remove('active');
-    sound.startMusic(state.bossMode ? `boss${state.stage}` : `stage${state.stage}`);
-  }
-
-  function maybeSpawn(dt) {
-    if (state.bossMode) {
-      if (!state.boss) return;
-      state.bossSpawnTicker += dt;
-      if (state.stage === 2 && state.bossSpawnTicker > 2.8) {
-        state.bossSpawnTicker = 0;
-        createEnemy(Math.random() > .35 ? 'lightning' : 'normal');
-      }
-      if (state.stage === 3 && state.bossSpawnTicker > 2.3) {
-        state.bossSpawnTicker = 0;
-        createEnemy(Math.random() > .45 ? 'lightning' : 'normal');
-      }
-      return;
-    }
-    state.spawnTimer += dt;
-    const baseGap = state.stage === 1 ? 1.02 : state.stage === 2 ? 0.92 : 0.82;
-    const gap = baseGap * getDifficulty().spawn * (state.fever ? 0.72 : 1);
-    if (state.spawnTimer >= gap) {
-      state.spawnTimer = 0;
-      const roll = Math.random();
-      let type = 'normal';
-      if (state.stage === 1) {
-        if (roll > 0.92) type = 'gold';
-      } else if (state.stage === 2) {
-        type = roll > 0.35 ? 'lightning' : 'normal';
-        if (roll > 0.95) type = 'gold';
-      } else {
-        if (roll > 0.55) type = 'lightning';
-        if (roll > 0.94) type = 'gold';
-      }
-      createEnemy(type);
-    }
-  }
-
-  function updateEnemies(dt) {
-    const rect = els.gameArea.getBoundingClientRect();
-    const floorY = rect.height - 160;
-    for (let i = state.enemies.length - 1; i >= 0; i--) {
-      const e = state.enemies[i];
-      e.y += e.speed * dt * (state.fever ? 1.06 : 1);
-      e.el.style.top = `${e.y}px`;
-      e.el.style.transform = `translateZ(0) rotate(${Math.sin((state.elapsed + i) * 2.5) * 6}deg)`;
-      if (e.y > floorY) onEnemyMiss(e);
-    }
-  }
-
-  function gameLoop(ts) {
-    if (!state.running || state.currentScreen !== 'game') return;
-    if (!state.lastTs) state.lastTs = ts;
-    let dt = (ts - state.lastTs) / 1000;
-    state.lastTs = ts;
-    dt = Math.min(dt, 0.05);
-    if (!state.paused) {
-      state.elapsed += dt;
-      if (state.fever && state.elapsed >= state.feverEnd) deactivateFever();
-      maybeSpawn(dt);
-      updateEnemies(dt);
-      updateHUD();
-    }
-    requestAnimationFrame(gameLoop);
-  }
-
-  function calcStars(stageId, score) {
-    const s = STAGES[stageId].stars;
-    if (score >= s[2]) return 3;
-    if (score >= s[1]) return 2;
-    if (score >= s[0]) return 1;
-    return 0;
-  }
-
-  function endStage(cleared) {
-    state.running = false;
-    state.paused = false;
-    state.resultStatus = cleared ? 'clear' : 'fail';
-    els.gameArea.innerHTML = '';
-    els.bossArea.classList.remove('active');
-    els.feverBadge.classList.remove('active');
-    if (cleared) {
-      const stars = calcStars(state.stage, state.score);
-      save.bestScores[state.stage] = Math.max(save.bestScores[state.stage] || 0, Math.floor(state.score));
-      save.bestStars[state.stage] = Math.max(save.bestStars[state.stage] || 0, stars);
-      if (!save.clears.includes(state.stage)) save.clears.push(state.stage);
-      save.unlockedStage = Math.max(save.unlockedStage, Math.min(3, state.stage + 1));
-      if (state.stage === 3) save.allClear = true;
-      save.totalScore += Math.floor(state.score);
-      save.history.unshift({ stage: state.stage, score: Math.floor(state.score), time: formatTime(state.elapsed), cleared: true, stars, maxCombo: state.maxCombo, date: new Date().toISOString() });
-      save.history = save.history.slice(0, 20);
-      persist();
-      sound.sfx('clear');
-      showResult(true, stars);
-    } else {
-      save.totalScore += Math.floor(state.score * 0.25);
-      save.history.unshift({ stage: state.stage, score: Math.floor(state.score), time: formatTime(state.elapsed), cleared: false, stars: 0, maxCombo: state.maxCombo, date: new Date().toISOString() });
-      save.history = save.history.slice(0, 20);
-      persist();
-      sound.sfx('fail');
-      showResult(false, 0);
-    }
-  }
-
-  function showResult(cleared, stars) {
-    els.resultTitle.textContent = cleared ? (state.stage === 3 ? 'ALL STAGE CLEAR!' : 'STAGE CLEAR!') : 'MISSION FAILED';
-    els.resultMessage.textContent = cleared
-      ? `${STAGES[state.stage].name} 클리어 완료! ${state.stage === 3 ? '손가락 왕국 탈출 성공!' : '다음 스테이지가 열렸어요.'}`
-      : '하트가 모두 소진되었습니다. 설정을 조정하거나 다시 도전해보세요.';
-    els.resultScore.textContent = Math.floor(state.score);
-    els.resultTime.textContent = formatTime(state.elapsed);
-    els.resultCombo.textContent = state.maxCombo;
-    els.resultStars.textContent = cleared ? '⭐'.repeat(Math.max(stars,1)) : '—';
-    els.nextStageBtn.disabled = !cleared || state.stage >= 3;
-    els.nextStageBtn.style.opacity = (!cleared || state.stage >= 3) ? '.5' : '1';
-    goScreen('result');
-  }
-
-  function openModal(type) {
-    state.paused = state.currentScreen === 'game';
-    let html = '';
-    if (type === 'settings') {
-      html = `
-        <h3>설정</h3>
-        <p class="sub">난이도 조절, BGM, 효과음을 설정할 수 있습니다.</p>
-        <div class="settings-grid">
-          <div class="setting-row">
-            <div><strong>난이도</strong><div class="small-text">쉬움 / 보통 / 도전</div></div>
-            <div class="chip-group">
-              ${['easy','normal','hard'].map(k=>`<button class="chip ${save.difficulty===k?'active':''}" data-diff="${k}">${DIFFICULTY[k].name}</button>`).join('')}
-            </div>
-          </div>
-          <div class="setting-row">
-            <div><strong>BGM</strong><div class="small-text">스테이지별 음악 재생</div></div>
-            <button class="toggle ${save.musicOn?'on':''}" data-toggle="music"></button>
-          </div>
-          <div class="setting-row">
-            <div><strong>효과음</strong><div class="small-text">타격 / 클리어 / 경고음</div></div>
-            <button class="toggle ${save.soundOn?'on':''}" data-toggle="sound"></button>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="secondary-btn" id="saveSettingsBtn" style="flex:1;">닫기</button>
-        </div>`;
-    }
-    if (type === 'achievements') {
-      const items = getAchievements();
-      html = `
-        <h3>업적</h3>
-        <p class="sub">플레이 기록에 따라 업적이 열립니다.</p>
-        <div class="list">
-          ${items.map(a=>`<div class="list-item ${a.done?'done':''}"><strong>${a.done?'🏆':'🔒'} ${a.title}</strong><div class="small-text" style="margin-top:6px;">${a.desc}</div></div>`).join('')}
-        </div>
-        <div class="modal-actions"><button class="secondary-btn" id="closeModalBtn" style="flex:1;">닫기</button></div>`;
-    }
-    if (type === 'scores') {
-      const hist = save.history.length ? save.history : [];
-      html = `
-        <h3>점수판</h3>
-        <p class="sub">기기 기준 최고 점수와 최근 기록입니다.</p>
-        <div class="list">
-          <div class="list-item"><strong>스테이지별 최고점</strong><div class="small-text" style="margin-top:8px; line-height:1.8;">STAGE 1 : ${save.bestScores[1]||0}점 / ${'⭐'.repeat(save.bestStars[1]||0)||'—'}<br>STAGE 2 : ${save.bestScores[2]||0}점 / ${'⭐'.repeat(save.bestStars[2]||0)||'—'}<br>STAGE 3 : ${save.bestScores[3]||0}점 / ${'⭐'.repeat(save.bestStars[3]||0)||'—'}</div></div>
-          ${hist.length ? hist.map(h=>`<div class="list-item"><strong>${h.cleared?'✅':'❌'} STAGE ${h.stage} · ${h.score}점</strong><div class="small-text" style="margin-top:6px;">${h.time} / ${h.cleared ? '클리어' : '실패'} / ${h.stars?('⭐'.repeat(h.stars)):'스타 없음'}</div></div>`).join('') : '<div class="list-item">아직 기록이 없습니다.</div>'}
-        </div>
-        <div class="modal-actions"><button class="secondary-btn" id="closeModalBtn" style="flex:1;">닫기</button></div>`;
-    }
-    if (type === 'pause') {
-      html = `
-        <h3>일시정지</h3>
-        <p class="sub">게임을 잠시 멈췄습니다.</p>
-        <div class="modal-actions" style="display:grid; grid-template-columns:1fr 1fr;">
-          <button class="secondary-btn" id="resumeBtn">계속하기</button>
-          <button class="ghost-btn" id="openSettingsFromPause">설정</button>
-        </div>
-        <div class="modal-actions" style="display:grid; grid-template-columns:1fr 1fr;">
-          <button class="ghost-btn" id="restartFromPause">다시 시작</button>
-          <button class="ghost-btn" id="closeToHome">홈으로</button>
-        </div>`;
-    }
-    els.modal.innerHTML = html;
-    els.modalBackdrop.classList.add('show');
-    bindModalEvents(type);
-  }
-
-  function closeModal() {
-    els.modalBackdrop.classList.remove('show');
-    els.modal.innerHTML = '';
-    if (state.currentScreen === 'game' && state.running) state.paused = false;
-  }
-
-  function bindModalEvents(type) {
-    if (type === 'settings') {
-      els.modal.querySelectorAll('[data-diff]').forEach(btn => btn.addEventListener('click', () => {
-        save.difficulty = btn.dataset.diff; persist(); sound.setSettings(save.musicOn, save.soundOn); openModal('settings');
-      }));
-      els.modal.querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
-        const key = btn.dataset.toggle;
-        if (key === 'music') save.musicOn = !save.musicOn;
-        if (key === 'sound') save.soundOn = !save.soundOn;
-        persist();
-        sound.setSettings(save.musicOn, save.soundOn);
-        if (state.currentScreen === 'game' && state.running) sound.startMusic(state.fever ? 'fever' : (state.bossMode ? `boss${state.stage}` : `stage${state.stage}`));
-        openModal('settings');
-      }));
-      document.getElementById('saveSettingsBtn')?.addEventListener('click', closeModal);
-    }
-    if (type === 'pause') {
-      document.getElementById('resumeBtn')?.addEventListener('click', closeModal);
-      document.getElementById('openSettingsFromPause')?.addEventListener('click', () => openModal('settings'));
-      document.getElementById('restartFromPause')?.addEventListener('click', () => { closeModal(); startStage(state.stage); });
-      document.getElementById('closeToHome')?.addEventListener('click', () => { closeModal(); state.running = false; goScreen('home'); });
-    }
-    if (type === 'achievements' || type === 'scores') {
-      document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
-    }
-  }
-
-  function getAchievements() {
-    return [
-      { title:'첫 승리', desc:'아무 스테이지나 1회 클리어', done: save.clears.length >= 1 },
-      { title:'번개 도전자', desc:'STAGE 2 해금', done: save.unlockedStage >= 2 },
-      { title:'끝판왕 입장', desc:'STAGE 3 해금', done: save.unlockedStage >= 3 },
-      { title:'손가락 왕국 탈출', desc:'모든 스테이지 클리어', done: !!save.allClear },
-      { title:'누적 5000점', desc:'전체 누적 점수 5000점 달성', done: (save.totalScore || 0) >= 5000 },
-      { title:'연속 콤보 마스터', desc:'한 판에서 15콤보 달성', done: save.history.some(h => (h.maxCombo || 0) >= 15) }
-    ];
-  }
-
-  async function shareGame(customText) {
-    const text = customText || 'BITTER HERO - 손가락 왕국 탈출! 나도 플레이해보세요!';
-    const shareData = { title: 'Bitter Hero', text, url: GAME_URL };
-    try {
-      if (navigator.share) await navigator.share(shareData);
-      else {
-        await navigator.clipboard.writeText(`${text} ${GAME_URL}`);
-        alert('공유 문구가 복사되었습니다.');
-      }
-    } catch (e) {
-      if (e?.name !== 'AbortError') alert('공유를 진행하지 못했습니다.');
-    }
-  }
-
-  function bindGlobalEvents() {
-    document.body.addEventListener('pointerdown', () => sound.unlock(), { once: true });
-    const openStageSelect = () => { sound.unlock(); goScreen('select'); renderStageList(); };
-    document.getElementById('homeStartHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openStageSelect(); });
-    document.getElementById('homeAchHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal('achievements'); });
-    document.getElementById('homeScoreHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal('scores'); });
-    document.getElementById('homeSettingsHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal('settings'); });
-
-    // Responsive fallback: the home artwork is a single image, so use normalized
-    // tap coordinates as a second route. This keeps the visible buttons clickable
-    // even when the image is cropped differently on various phone aspect ratios.
-    document.getElementById('homeWrap').addEventListener('pointerup', (e) => {
-      if (e.target.closest('button')) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const nx = (e.clientX - rect.left) / rect.width;
-      const ny = (e.clientY - rect.top) / rect.height;
-      if (ny >= 0.70 && ny <= 0.845) {
-        openStageSelect();
-        return;
-      }
-      if (ny >= 0.84) {
-        if (nx < 0.34) openModal('achievements');
-        else if (nx < 0.66) openModal('scores');
-        else openModal('settings');
-      }
-    });
-    document.getElementById('shareHomeBtn').addEventListener('click', () => shareGame());
-    document.getElementById('shareLobbyBtn').addEventListener('click', () => shareGame());
-    document.getElementById('shareResultBtn').addEventListener('click', () => shareGame(`BITTER HERO STAGE ${state.stage} ${state.resultStatus === 'clear' ? '클리어!' : '도전중!'} 점수 ${Math.floor(state.score)}점`));
-    document.getElementById('shareAgainBtn').addEventListener('click', () => shareGame(`BITTER HERO STAGE ${state.stage} ${state.resultStatus === 'clear' ? '클리어!' : '재도전 중!'} 점수 ${Math.floor(state.score)}점`));
-
-    [document.getElementById('booksHomeBtn'), document.getElementById('booksLobbyBtn'), document.getElementById('booksResultBtn')].forEach(btn => btn.addEventListener('click', () => window.open(BOOKS_URL, '_blank')));
-    document.querySelectorAll('[data-go-home]').forEach(btn => btn.addEventListener('click', () => { state.running = false; closeModal(); goScreen('home'); }));
-
-    document.getElementById('pauseBtn').addEventListener('click', () => openModal('pause'));
-    els.bossImage.addEventListener('click', hitBoss);
-    document.getElementById('retryBtn').addEventListener('click', () => startStage(state.stage));
-    document.getElementById('nextStageBtn').addEventListener('click', () => { if (state.stage < 3) startStage(state.stage + 1); });
-    document.getElementById('stageSelectBtn').addEventListener('click', () => { goScreen('select'); renderStageList(); });
-    els.modalBackdrop.addEventListener('click', (e) => { if (e.target === els.modalBackdrop) closeModal(); });
-  }
-
-  bindGlobalEvents();
-  renderStageList();
+(()=>{
+const GAME_URL=window.location.href.split('#')[0]; const BOOK_URL='https://bitterbooks.com/'; const API='https://bitterbooks-score-api.kunmuk2025.workers.dev';
+const $=id=>document.getElementById(id);
+const AS={bg:{1:'assets/stage1-bg.png',2:'assets/stage2-bg.png',3:'assets/stage3-bg.png'},enemy:{normal:'assets/enemy-normal.png',lightning:'assets/enemy-lightning.png',gold:'assets/enemy-gold.png',shield:'assets/enemy-shield.png',split:'assets/enemy-split.png',jump:'assets/enemy-jump.png'},boss:{1:'assets/boss-stage1.png',2:'assets/boss-stage2.png',3:'assets/boss-stage3.png','3final':'assets/boss-stage3-final.png'},ui:{timing:'assets/ui-timing-ring.png',dodge:'assets/ui-dodge.png'},skill:{shield:'assets/skill-shield.png',double:'assets/skill-double.png',saver:'assets/skill-saver.png'}};
+const ST={1:{name:'말랑손가락 놀이터',target:16,mission:'PERFECT 포함 16개 처치',desc:'타이밍 판정을 익히고 엄지대장을 쓰러뜨리세요.',boss:'엄지대장'},2:{name:'번개손가락 시티',target:14,mission:'번개 적 포함 14개 처치',desc:'쉴드·분열·점프 패턴과 썬더왕의 순서 공격에 도전하세요.',boss:'썬더 엄지왕'},3:{name:'쓴맛왕의 성',target:22,mission:'22개 처치 후 FINAL BOSS',desc:'모든 패턴과 3페이즈 끝판대장을 돌파하세요.',boss:'궁극의 쓴맛왕'}};
+const DIFF={easy:{name:'쉬움',speed:.82,gap:1.13,hearts:4,boss:.82},normal:{name:'보통',speed:1,gap:1,hearts:3,boss:1},hard:{name:'도전',speed:1.15,gap:.88,hearts:3,boss:1.18}};
+const SKILLS={shield:{icon:`<img src="${AS.skill.shield}" alt="shield">`,name:'Bitter Shield',desc:'다음 MISS 1회를 막아줍니다.'},double:{icon:`<img src="${AS.skill.double}" alt="double tap">`,name:'Double Tap',desc:'10초 동안 모든 공격이 2배 피해.'},slow:{icon:'⏱️',name:'Slow Time',desc:'12초 동안 적 속도 35% 감소.'},saver:{icon:`<img src="${AS.skill.saver}" alt="combo saver">`,name:'Combo Saver',desc:'다음 MISS 2회까지 콤보 유지.'},blast:{icon:'💥',name:'Bitter Blast',desc:'15콤보마다 화면 적 전체 제거.'}};
+const defaultSave={unlocked:1,difficulty:'normal',music:true,sfx:true,best:{1:0,2:0,3:0},stars:{1:0,2:0,3:0},total:0,kills:0,allClear:false,history:[],dailyDone:''};
+let save=load(); function load(){try{return {...defaultSave,...JSON.parse(localStorage.getItem('bitterHeroV7')||'{}')}}catch{return {...defaultSave}}} function persist(){localStorage.setItem('bitterHeroV7',JSON.stringify(save))}
+const state={screen:'home',run:false,paused:false,stage:1,last:0,elapsed:0,score:0,combo:0,maxCombo:0,hearts:3,mission:0,spawn:0,enemies:[],id:0,boss:null,bossMode:false,bossStart:0,perfect:0,good:0,miss:0,skills:[],shieldCharges:0,comboSaver:0,doubleUntil:0,slowUntil:0,feverUntil:0,blastActive:false,choiceCount:0,lastComboReward:0,seq:[],seqIndex:0,danger:[],bossVulnerable:false,bossPatternTimer:0,bossMoveT:0,finalPhase:1,lastBossHit:0,rankingText:'',daily:null};
+const screens={home:$('homeScreen'),lobby:$('lobbyScreen'),game:$('gameScreen'),result:$('resultScreen')};
+function show(name){Object.values(screens).forEach(s=>s.classList.remove('active'));screens[name].classList.add('active');state.screen=name;if(name!=='game')music.stop();if(name==='lobby')renderLobby()}
+function fmt(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`}
+function diff(){return DIFF[save.difficulty]||DIFF.normal} function clamp(v,a,b){return Math.max(a,Math.min(b,v))} function rand(a,b){return a+Math.random()*(b-a)}
+/* audio */
+class Music{constructor(){this.ctx=null;this.timer=null;this.mode='';this.step=0}unlock(){if(!this.ctx){const A=window.AudioContext||window.webkitAudioContext;if(A)this.ctx=new A()}if(this.ctx?.state==='suspended')this.ctx.resume()}tone(f,d=.12,type='sine',g=.03,delay=0){if(!this.ctx)return;const t=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),v=this.ctx.createGain();o.type=type;o.frequency.value=f;v.gain.setValueAtTime(.0001,t);v.gain.exponentialRampToValueAtTime(g,t+.012);v.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(v).connect(this.ctx.destination);o.start(t);o.stop(t+d+.02)}noise(d=.06,g=.018,delay=0){if(!this.ctx)return;const sr=this.ctx.sampleRate,b=this.ctx.createBuffer(1,sr*d,sr);const a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=(Math.random()*2-1)*(1-i/a.length);const s=this.ctx.createBufferSource(),v=this.ctx.createGain();s.buffer=b;v.gain.value=g;s.connect(v).connect(this.ctx.destination);s.start(this.ctx.currentTime+delay)}sfx(k){if(!save.sfx)return;this.unlock();if(k==='tap'){this.tone(700,.07,'triangle',.045);this.tone(1040,.07,'triangle',.03,.03)}if(k==='perfect'){this.tone(880,.08,'triangle',.05);this.tone(1318,.09,'triangle',.04,.04)}if(k==='miss'){this.tone(150,.18,'sawtooth',.045);this.noise(.11,.025)}if(k==='boss'){this.tone(95,.42,'sawtooth',.055);this.noise(.18,.03,.06)}if(k==='clear'){[659,784,988,1318].forEach((f,i)=>this.tone(f,.14,'triangle',.045,i*.07))}if(k==='skill'){[523,659,880].forEach((f,i)=>this.tone(f,.1,'triangle',.035,i*.05))}}start(mode){this.unlock();if(!save.music||!this.ctx)return;if(this.mode===mode&&this.timer)return;this.stop();this.mode=mode;this.step=0;const cfg={stage1:{bpm:118,lead:[523,659,784,659,587,698,784,880],bass:[131,147,165,147],type:'triangle',drum:2},stage2:{bpm:142,lead:[392,523,659,784,659,523,698,880],bass:[98,123,110,147],type:'square',drum:1},stage3:{bpm:132,lead:[220,294,330,392,330,294,440,392],bass:[73,82,98,73],type:'sawtooth',drum:1},boss1:{bpm:128,lead:[196,262,294,262,220,294,330,262],bass:[65,65,82,73],type:'square',drum:1},boss2:{bpm:150,lead:[220,330,440,330,247,370,494,370],bass:[73,98,82,110],type:'sawtooth',drum:1},boss3:{bpm:158,lead:[165,220,247,294,247,220,330,294],bass:[55,65,73,55],type:'sawtooth',drum:1},fever:{bpm:176,lead:[784,988,1175,1318,1175,988,1397,1568],bass:[196,247,220,294],type:'triangle',drum:1}}[mode]||null;if(!cfg)return;const ms=60000/cfg.bpm/2;this.timer=setInterval(()=>{if(!save.music||!this.ctx)return;const i=this.step%cfg.lead.length;this.tone(cfg.lead[i],.11,cfg.type,.025);if(this.step%2===0)this.tone(cfg.bass[this.step%cfg.bass.length],.16,'triangle',.018);if(this.step%2===0){this.tone(55,.05,'sine',.035);this.noise(.035,.016,.01)}else if(cfg.drum===1)this.noise(.025,.009);this.step++},ms)}stop(){if(this.timer){clearInterval(this.timer);this.timer=null}this.mode=''}} const music=new Music();
+/* daily */
+function dailyChallenge(){const d=new Date(),key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`,n=(d.getFullYear()*31+d.getMonth()*7+d.getDate())%4;const arr=[{id:'combo',title:'🔥 50 Combo',desc:'한 판에서 50콤보 달성',check:()=>state.maxCombo>=50},{id:'perfect',title:'⭐ PERFECT 20회',desc:'한 판에서 PERFECT 20회 달성',check:()=>state.perfect>=20},{id:'boss',title:'👑 보스 스피드런',desc:'보스를 25초 안에 격파',check:()=>state.bossStart&&state.elapsed-state.bossStart<=25},{id:'stage2',title:'⚡ 번개 도시',desc:'STAGE 2를 클리어',check:()=>state.stage===2&&state.run===false}];return {...arr[n],key}}
+state.daily=dailyChallenge();
+function renderLobby(){$('dailyTitle').textContent=state.daily.title+(save.dailyDone===state.daily.key?' · 완료 👑':'');$('dailyDesc').textContent=state.daily.desc;$('stageList').innerHTML='';Object.values(ST).forEach(s=>{const unlocked=save.unlocked>=s.target*0+s.id,card=document.createElement('div');card.className='stageCard';card.innerHTML=`<img class="stageBg" src="${AS.bg[s.id]}"><div class="stageShade"></div><div class="stageInfo"><div class="stageNo">STAGE ${s.id}</div><h3>${s.name}</h3><p>${s.desc}</p><div class="stageBottom"><div class="stars">${save.stars[s.id]?('⭐'.repeat(save.stars[s.id])):'☆ ☆ ☆'}</div>${unlocked?'<button class="primary">도전</button>':''}</div></div>${unlocked?'':`<div class="stageLock"><span>🔒</span>STAGE ${s.id-1} 클리어 필요</div>`}`;if(unlocked)card.querySelector('button').onclick=()=>startStage(s.id);$('stageList').appendChild(card)})}
+/* game init */
+function reset(stage){state.stage=stage;state.run=true;state.paused=false;state.last=0;state.elapsed=0;state.score=0;state.combo=0;state.maxCombo=0;state.hearts=diff().hearts;state.mission=0;state.spawn=0;state.enemies=[];state.id=0;state.boss=null;state.bossMode=false;state.bossStart=0;state.perfect=0;state.good=0;state.miss=0;state.skills=[];state.shieldCharges=0;state.comboSaver=0;state.doubleUntil=0;state.slowUntil=0;state.feverUntil=0;state.blastActive=false;state.choiceCount=0;state.lastComboReward=0;state.seq=[];state.seqIndex=0;state.danger=[];state.bossVulnerable=false;state.bossPatternTimer=0;state.bossMoveT=0;state.finalPhase=1;$('playArea').innerHTML='';$('bossLayer').classList.remove('on');$('bossHud').classList.remove('on');$('seqLayer').innerHTML='';$('warning').classList.remove('on');$('skillBar').innerHTML='';$('fever').classList.remove('on')}
+function startStage(n){music.unlock();reset(n);$('gameBg').src=AS.bg[n];$('stageName').textContent=`STAGE ${n} · ${ST[n].name}`;$('missionText').textContent=ST[n].mission;show('game');updateHud();music.start(`stage${n}`);requestAnimationFrame(loop)}
+function updateHud(){$('score').textContent=Math.floor(state.score).toLocaleString();$('combo').textContent=state.combo;$('life').textContent='❤️'.repeat(state.hearts)+'🖤'.repeat(Math.max(0,3-state.hearts));$('missionCount').textContent=`${Math.min(state.mission,ST[state.stage].target)} / ${ST[state.stage].target}`;$('missionFill').style.width=`${Math.min(100,state.mission/ST[state.stage].target*100)}%`;renderSkillBar()}
+function renderSkillBar(){$('skillBar').innerHTML=state.skills.map(k=>`<div class="skillIcon">${SKILLS[k].icon}${k==='shield'&&state.shieldCharges?`<small>${state.shieldCharges}</small>`:''}${k==='saver'&&state.comboSaver?`<small>${state.comboSaver}</small>`:''}</div>`).join('')}
+/* enemy */
+function typeForStage(){const r=Math.random();if(state.stage===1){if(r>.92)return'gold';if(r>.72)return'shield';return'normal'}if(state.stage===2){if(r>.94)return'gold';if(r>.75)return'jump';if(r>.55)return'split';if(r>.30)return'shield';return'lightning'}if(r>.95)return'gold';if(r>.79)return'jump';if(r>.62)return'split';if(r>.45)return'shield';if(r>.2)return'lightning';return'normal'}
+function addEnemy(type=typeForStage(),xOverride=null,yOverride=null,mini=false){const area=$('playArea').getBoundingClientRect(),base=mini?48:(type==='lightning'?82:type==='gold'?80:74),el=document.createElement('button');el.className=`enemy ${type==='shield'?'shielded':''} ${type==='jump'?'jump':''} ${mini?'miniEnemy':''}`;const imgType=type==='gold'?'gold':type==='lightning'?'lightning':type==='shield'?'shield':type==='split'?'split':type==='jump'?'jump':'normal';el.innerHTML=`<img src="${AS.enemy[imgType]}">${type==='lightning'?'<i class="badge">2 TAP</i>':type==='shield'?'<i class="badge">SHIELD</i>':type==='split'?'<i class="badge">SPLIT</i>':type==='jump'?'<i class="badge">JUMP</i>':''}`;const e={id:++state.id,type,el,size:base,x:xOverride??rand(10,Math.max(20,area.width-base-10)),y:yOverride??(-base-rand(10,80)),speed:(mini?210:type==='lightning'?225:type==='gold'?170:185)*diff().speed,hp:type==='lightning'?2:type==='shield'?2:1,mini,lastJump:state.elapsed};el.style.width=el.style.height=base+'px';el.style.left=e.x+'px';el.style.top=e.y+'px';el.onclick=ev=>{ev.preventDefault();hitEnemy(e,ev.clientX,ev.clientY)};state.enemies.push(e);$('playArea').appendChild(el)}
+function judgment(e){const area=$('playArea').getBoundingClientRect(),center=e.y+e.size/2,perfect=area.height-112,dist=Math.abs(center-perfect);if(dist<42)return{name:'PERFECT!',mult:2,color:'#8ff8ff',p:'perfect'};if(dist<105)return{name:'GOOD!',mult:1.35,color:'#ffd84c',p:'good'};return{name:'OK',mult:1,color:'#fff',p:'ok'}}
+function hitEnemy(e,x,y){if(!state.run||state.paused)return;const idx=state.enemies.findIndex(q=>q.id===e.id);if(idx<0)return;if(e.type==='lightning'||e.type==='shield'){e.hp--;music.sfx('tap');if(e.hp>0){e.el.classList.remove('shielded');e.el.querySelector('.badge').textContent='BREAK!';judgeFx('BREAK!',x,y,'#55dfff');return}}
+state.enemies.splice(idx,1);e.el.remove();const j=judgment(e);if(j.p==='perfect'){state.perfect++;music.sfx('perfect')}else if(j.p==='good'){state.good++;music.sfx('tap')}else music.sfx('tap');state.combo++;state.maxCombo=Math.max(state.maxCombo,state.combo);const dmul=state.elapsed<state.doubleUntil?2:1,fever=state.elapsed<state.feverUntil?2:1;let pts=(e.type==='gold'?220:e.type==='lightning'?135:e.type==='shield'?120:e.type==='split'?120:e.type==='jump'?145:95)*j.mult*dmul*fever;state.score+=pts;if(e.type==='gold'){if(state.hearts<3)state.hearts++;state.score+=100}if(e.type==='split'&&!e.mini){addEnemy('normal',e.x-18,e.y,true);addEnemy('normal',e.x+30,e.y,true)}state.mission++;judgeFx(j.name,x,y,j.color);comboRewards();if(state.blastActive&&state.combo>0&&state.combo%15===0)blast();if(state.mission>=ST[state.stage].target&&!state.bossMode)beginBoss();updateHud()}
+function judgeFx(t,x,y,c){const r=$('playArea').getBoundingClientRect(),d=document.createElement('div');d.className='judgment';d.textContent=t;d.style.left=`${x-r.left}px`;d.style.top=`${y-r.top}px`;d.style.color=c;$('playArea').appendChild(d);setTimeout(()=>d.remove(),720)}
+function comboFx(t){const d=document.createElement('div');d.className='comboBurst';d.textContent=t;$('playArea').appendChild(d);setTimeout(()=>d.remove(),900)}
+function enemyMiss(e){const i=state.enemies.findIndex(q=>q.id===e.id);if(i<0)return;state.enemies.splice(i,1);e.el.remove();if(state.shieldCharges>0){state.shieldCharges--;comboFx('🛡 BLOCK!');updateHud();return}state.hearts--;state.miss++;if(state.comboSaver>0){state.comboSaver--;comboFx('🔥 COMBO SAVED!')}else state.combo=0;music.sfx('miss');updateHud();if(state.hearts<=0)finish(false)}
+function comboRewards(){if(state.combo===10)comboFx('10 COMBO · SCORE UP!');if(state.combo===20&&state.choiceCount<1){state.choiceCount++;skillChoice()}if(state.combo===30&&state.feverUntil<state.elapsed){state.feverUntil=state.elapsed+7;$('fever').classList.add('on');music.start('fever');comboFx('🔥 BITTER MODE!')}if(state.combo===50&&state.slowUntil<state.elapsed){state.slowUntil=state.elapsed+4;comboFx('❄ 50 COMBO SLOW!')}if(state.combo===100){state.feverUntil=state.elapsed+10;$('fever').classList.add('on');music.start('fever');comboFx('🌈 SUPER FEVER!')}}
+function blast(){const arr=[...state.enemies];arr.forEach(e=>{state.score+=45;e.el.remove()});state.enemies=[];comboFx('💥 BITTER BLAST!')}
+/* skills */
+function skillChoice(){state.paused=true;const keys=Object.keys(SKILLS).sort(()=>Math.random()-.5).slice(0,3);openModal(`<h2>SKILL CHOICE</h2><p>이번 판의 플레이 스타일을 바꿀 스킬 하나를 선택하세요.</p><div class="choiceGrid">${keys.map(k=>`<button class="skillCard" data-skill="${k}"><div class="ico">${SKILLS[k].icon}</div><b>${SKILLS[k].name}</b><span>${SKILLS[k].desc}</span></button>`).join('')}</div>`);$('modal').querySelectorAll('[data-skill]').forEach(b=>b.onclick=()=>{applySkill(b.dataset.skill);closeModal();state.paused=false})}
+function applySkill(k){if(!state.skills.includes(k))state.skills.push(k);if(k==='shield')state.shieldCharges++;if(k==='double')state.doubleUntil=state.elapsed+10;if(k==='slow')state.slowUntil=state.elapsed+12;if(k==='saver')state.comboSaver+=2;if(k==='blast')state.blastActive=true;music.sfx('skill');updateHud()}
+/* boss */
+function bossHP(){const base={1:30,2:42,3:64}[state.stage];return Math.round(base*diff().boss)}
+function beginBoss(){state.bossMode=true;state.enemies.forEach(e=>e.el.remove());state.enemies=[];state.boss={hp:bossHP(),max:bossHP(),phase:1};state.bossStart=state.elapsed;state.bossPatternTimer=0;state.bossVulnerable=false;state.finalPhase=1;$('warning').classList.add('on');music.sfx('boss');setTimeout(()=>{$('warning').classList.remove('on');$('bossLayer').classList.add('on');$('bossHud').classList.add('on');$('bossName').textContent=ST[state.stage].boss;$('bossImg').src=AS.boss[state.stage];music.start(`boss${state.stage}`);updateBossHud()},950)}
+function updateBossHud(){if(!state.boss)return;$('bossHp').style.width=`${Math.max(0,state.boss.hp/state.boss.max*100)}%`;$('bossMsg').textContent=state.stage===1?(state.bossVulnerable?'TARGET! 지금 공격!':'움직임을 읽고 기다리세요'):state.stage===2?(state.seq.length?'숫자 순서대로 터치!':state.bossVulnerable?'기절! 지금 연타!':'순서 공격을 준비합니다'):state.finalPhase===1?'TARGET 창을 노리세요':state.finalPhase===2?'빨간 위험영역은 누르지 마세요!':'FINAL PHASE · 0.7초 공격창!';$('bossObj').classList.toggle('vulnerable',state.bossVulnerable)}
+$('bossObj').onclick=ev=>{if(!state.run||state.paused||!state.boss)return;if(!state.bossVulnerable){state.combo=0;judgeFx('BLOCK!',ev.clientX,ev.clientY,'#ff657b');music.sfx('miss');return}const dmg=(state.elapsed<state.doubleUntil?2:1)*(state.elapsed<state.feverUntil?2:1);state.boss.hp-=dmg;state.score+=48*dmg;state.combo++;state.maxCombo=Math.max(state.maxCombo,state.combo);music.sfx('perfect');judgeFx(`-${dmg}`,ev.clientX,ev.clientY,'#ffd12d');if(state.stage===3){if(state.finalPhase===1&&state.boss.hp<=state.boss.max*.68){state.finalPhase=2;phaseTransition('PHASE 2')}else if(state.finalPhase===2&&state.boss.hp<=state.boss.max*.30){state.finalPhase=3;phaseTransition('FINAL PHASE')}}if(state.boss.hp<=0){finish(true);return}updateBossHud()};
+function phaseTransition(t){state.bossVulnerable=false;clearSeq();comboFx(t);music.sfx('boss');if(state.stage===3&&state.finalPhase===3){$('bossImg').src=AS.boss['3final']||AS.boss[3]}if(state.finalPhase===3)music.start('boss3')}
+function clearSeq(){$('seqLayer').innerHTML='';state.seq=[];state.seqIndex=0;state.danger=[]}
+function spawnSequence(){clearSeq();state.bossVulnerable=false;const layer=$('seqLayer'),rect=layer.getBoundingClientRect(),seq=[1,2,3,4];state.seq=seq;state.seqIndex=0;seq.forEach((n,i)=>{const b=document.createElement('button');b.className='seqTarget';b.textContent=n;b.style.left=`${rand(5,Math.max(10,rect.width-68))}px`;b.style.top=`${rand(20,Math.max(25,rect.height-80))}px`;b.onclick=()=>{if(n!==state.seq[state.seqIndex]){state.seqIndex=0;comboFx('WRONG!');music.sfx('miss');return}b.remove();state.seqIndex++;music.sfx('tap');if(state.seqIndex>=state.seq.length){clearSeq();state.bossVulnerable=true;state.bossPatternTimer=0;comboFx('STUN!');updateBossHud()}};layer.appendChild(b)});updateBossHud()}
+function spawnDanger(){clearSeq();const layer=$('seqLayer'),rect=layer.getBoundingClientRect();for(let i=0;i<3;i++){const z=document.createElement('button');z.className='dangerZone';const s=rand(75,110);z.style.width=z.style.height=s+'px';z.style.left=rand(5,Math.max(10,rect.width-s-5))+'px';z.style.top=rand(25,Math.max(30,rect.height-s-25))+'px';z.onclick=()=>{state.hearts--;music.sfx('miss');comboFx('DODGE!');z.remove();updateHud();if(state.hearts<=0)finish(false)};layer.appendChild(z)}state.danger=[1];setTimeout(()=>{clearSeq();state.bossVulnerable=true;state.bossPatternTimer=0;updateBossHud()},2300)}
+function updateBoss(dt){if(!state.boss)return;state.bossMoveT+=dt;const obj=$('bossObj'),layer=$('bossLayer').getBoundingClientRect();if(state.stage===1){obj.style.left=`${50+Math.sin(state.bossMoveT*1.5)*24}%`;state.bossPatternTimer+=dt;if(state.bossPatternTimer>1.8){state.bossPatternTimer=0;state.bossVulnerable=true;setTimeout(()=>{if(state.boss){state.bossVulnerable=false;updateBossHud()}},800);updateBossHud()}}
+if(state.stage===2){state.bossPatternTimer+=dt;if(state.seq.length===0&&!state.bossVulnerable&&state.bossPatternTimer>2.1){state.bossPatternTimer=0;obj.style.left=`${rand(25,75)}%`;spawnSequence()}if(state.bossVulnerable&&state.bossPatternTimer>3){state.bossVulnerable=false;state.bossPatternTimer=0;updateBossHud()}}
+if(state.stage===3){state.bossPatternTimer+=dt;if(state.finalPhase===1){obj.style.left=`${50+Math.sin(state.bossMoveT*1.7)*25}%`;if(state.bossPatternTimer>1.65){state.bossPatternTimer=0;state.bossVulnerable=true;setTimeout(()=>{if(state.boss&&state.finalPhase===1){state.bossVulnerable=false;updateBossHud()}},700);updateBossHud()}}else if(state.finalPhase===2){obj.style.left=`${50+Math.sin(state.bossMoveT*2.1)*20}%`;if(!state.danger.length&&!state.bossVulnerable&&state.bossPatternTimer>2.4){state.bossPatternTimer=0;spawnDanger()}if(state.bossVulnerable&&state.bossPatternTimer>1.4){state.bossVulnerable=false;state.bossPatternTimer=0;updateBossHud()}}else{obj.style.left=`${50+Math.sin(state.bossMoveT*3.2)*32}%`;if(state.bossPatternTimer>.98){state.bossPatternTimer=0;state.bossVulnerable=true;setTimeout(()=>{if(state.boss&&state.finalPhase===3){state.bossVulnerable=false;updateBossHud()}},650);updateBossHud()}}}}
+/* loop */
+function spawnLogic(dt){if(state.bossMode)return;state.spawn+=dt;const base={1:.96,2:.82,3:.70}[state.stage]*diff().gap;if(state.spawn>=base){state.spawn=0;addEnemy()}}
+function updateEnemies(dt){const area=$('playArea').getBoundingClientRect(),floor=area.height-105,slow=state.elapsed<state.slowUntil?.65:1;for(let i=state.enemies.length-1;i>=0;i--){const e=state.enemies[i];if(e.type==='jump'&&state.elapsed-e.lastJump>.85&&e.y<floor-100){e.x=rand(10,Math.max(20,area.width-e.size-10));e.lastJump=state.elapsed;e.el.style.left=e.x+'px'}e.y+=e.speed*slow*dt;e.el.style.top=e.y+'px';if(e.y>floor)enemyMiss(e)}}
+function loop(ts){if(!state.run||state.screen!=='game')return;if(!state.last)state.last=ts;let dt=Math.min(.05,(ts-state.last)/1000);state.last=ts;if(!state.paused){state.elapsed+=dt;if(state.feverUntil&&state.elapsed>=state.feverUntil){state.feverUntil=0;$('fever').classList.remove('on');music.start(state.bossMode?`boss${state.stage}`:`stage${state.stage}`)}spawnLogic(dt);updateEnemies(dt);if(state.bossMode)updateBoss(dt);updateHud()}requestAnimationFrame(loop)}
+/* results */
+function starFor(n){const t={1:[1300,2100,3100],2:[1800,2900,4200],3:[2600,4200,6200]}[state.stage];return n>=t[2]?3:n>=t[1]?2:n>=t[0]?1:0}
+async function finish(clear){if(!state.run)return;state.run=false;music.stop();clearSeq();$('bossLayer').classList.remove('on');$('bossHud').classList.remove('on');const stars=clear?starFor(state.score):0;if(clear){save.best[state.stage]=Math.max(save.best[state.stage]||0,Math.floor(state.score));save.stars[state.stage]=Math.max(save.stars[state.stage]||0,stars);save.unlocked=Math.max(save.unlocked,Math.min(3,state.stage+1));if(state.stage===3)save.allClear=true;music.sfx('clear')}save.total+=Math.floor(state.score);save.history.unshift({stage:state.stage,score:Math.floor(state.score),combo:state.maxCombo,perfect:state.perfect,time:fmt(state.elapsed),clear,date:Date.now()});save.history=save.history.slice(0,25);if(state.daily.check()){save.dailyDone=state.daily.key}persist();$('resultTitle').textContent=clear?(state.stage===3?'FINISH!':'STAGE CLEAR!'):'MISSION FAILED';$('resultSub').textContent=clear?`${ST[state.stage].name} 클리어 · ${'⭐'.repeat(Math.max(stars,1))}`:'하트가 모두 소진되었습니다.';$('resultScore').textContent=Math.floor(state.score).toLocaleString();$('statCombo').textContent=state.maxCombo;$('statPerfect').textContent=state.perfect;$('statGood').textContent=state.good;$('statBossTime').textContent=state.bossStart?`${(state.elapsed-state.bossStart).toFixed(1)}s`:'—';$('next').disabled=!clear||state.stage===3;$('next').style.opacity=$('next').disabled?.45:1;show('result');rankSubmit(Math.floor(state.score))}
+async function rankSubmit(score){$('rankBox').textContent='전체 랭킹 확인 중...';try{await fetch(`${API}/score`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'익명',score})});const r=await fetch(`${API}/leaderboard?limit=100`),d=await r.json(),arr=Array.isArray(d)?d:(d.items||[]),higher=arr.filter(x=>(+x.score||0)>score).length,pct=arr.length?Math.max(1,Math.round((higher+1)/arr.length*100)):null;$('rankBox').innerHTML=pct?`🏆 현재 전체 기록 기준 <b>상위 ${pct}%</b> · 다시 도전해 순위를 올려보세요.`:'기록이 저장되었습니다.'}catch{$('rankBox').textContent='기록은 기기에 저장되었습니다.'}}
+/* modal/settings */
+function openModal(html){state.paused=state.screen==='game';$('modal').innerHTML=html;$('modalBack').classList.add('on')}function closeModal(){$('modalBack').classList.remove('on');$('modal').innerHTML='';if(state.screen==='game'&&state.run)state.paused=false}
+function settingsModal(){openModal(`<h2>설정</h2><p>난이도와 사운드를 조절합니다.</p><div class="settingRow"><b>난이도</b><div class="chipRow">${Object.keys(DIFF).map(k=>`<button class="chip ${save.difficulty===k?'on':''}" data-diff="${k}">${DIFF[k].name}</button>`).join('')}</div></div><div class="settingRow"><b>BGM</b><button class="toggle ${save.music?'on':''}" data-tog="music"></button></div><div class="settingRow"><b>효과음</b><button class="toggle ${save.sfx?'on':''}" data-tog="sfx"></button></div><div class="modalActions"><button class="blue" id="closeSet">닫기</button></div>`);$('modal').querySelectorAll('[data-diff]').forEach(b=>b.onclick=()=>{save.difficulty=b.dataset.diff;persist();settingsModal()});$('modal').querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{save[b.dataset.tog]=!save[b.dataset.tog];persist();if(!save.music)music.stop();else if(state.screen==='game')music.start(state.bossMode?`boss${state.stage}`:`stage${state.stage}`);settingsModal()});$('closeSet').onclick=closeModal}
+function pauseModal(){openModal(`<h2>일시정지</h2><p>잠시 멈췄습니다.</p><div class="modalActions"><button class="blue" id="resume">계속하기</button><button class="ghost" id="setFromPause">설정</button></div><div class="modalActions"><button class="ghost" id="restart">다시 시작</button><button class="danger" id="homeFromPause">홈으로</button></div>`);$('resume').onclick=closeModal;$('setFromPause').onclick=settingsModal;$('restart').onclick=()=>{closeModal();startStage(state.stage)};$('homeFromPause').onclick=()=>{state.run=false;closeModal();show('home')}}
+function achievements(){const a=[['첫 승리',save.history.some(h=>h.clear)],['50 COMBO',save.history.some(h=>h.combo>=50)],['PERFECT 20',save.history.some(h=>h.perfect>=20)],['STAGE 3 해금',save.unlocked>=3],['손가락 왕국 탈출',save.allClear],['오늘의 왕관',save.dailyDone===state.daily.key]];openModal(`<h2>업적</h2><p>기록을 쌓아 왕관을 모아보세요.</p><div class="scoreRows">${a.map(x=>`<div class="scoreRow"><span>${x[1]?'🏆':'🔒'} ${x[0]}</span><b>${x[1]?'완료':'도전중'}</b></div>`).join('')}</div><div class="modalActions"><button class="blue" id="closeAch">닫기</button></div>`);$('closeAch').onclick=closeModal}
+function scores(){openModal(`<h2>점수판</h2><p>이 기기에 저장된 최고 기록입니다.</p><div class="scoreRows">${[1,2,3].map(i=>`<div class="scoreRow"><span>STAGE ${i}</span><b>${(save.best[i]||0).toLocaleString()} · ${'⭐'.repeat(save.stars[i]||0)||'—'}</b></div>`).join('')}</div><div class="modalActions"><button class="blue" id="closeScore">닫기</button></div>`);$('closeScore').onclick=closeModal}
+function dailyModal(){openModal(`<h2>오늘의 도전</h2><div class="dailyBox"><b>${state.daily.title}</b><p>${state.daily.desc}</p><strong>${save.dailyDone===state.daily.key?'👑 오늘의 왕관 획득!':'아직 도전 중'}</strong></div><div class="modalActions"><button class="blue" id="closeDaily">닫기</button></div>`);$('closeDaily').onclick=closeModal}
+async function share(text='BITTER HERO · TAP! DODGE! FEVER!'){const data={title:'BITTER HERO',text,url:GAME_URL};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(`${text} ${GAME_URL}`);alert('링크가 복사되었습니다.')}}catch(e){}}
+/* events */
+$('playHot').onclick=()=>{music.unlock();show('lobby')};$('achHot').onclick=achievements;$('scoreHot').onclick=scores;$('settingHot').onclick=settingsModal;$('soundQuick').onclick=()=>{save.music=!save.music;save.sfx=save.music;persist();$('soundQuick').textContent=save.music?'🔊':'🔇';if(!save.music)music.stop()};$('shareQuick').onclick=()=>share();document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{state.run=false;closeModal();show('home')});$('dailyBtn').onclick=dailyModal;$('settingsBtn').onclick=settingsModal;$('pauseBtn').onclick=pauseModal;$('retry').onclick=()=>startStage(state.stage);$('next').onclick=()=>{if(!$('next').disabled)startStage(Math.min(3,state.stage+1))};$('selectStage').onclick=()=>show('lobby');$('books').onclick=()=>window.open(BOOK_URL,'_blank');$('shareResult').onclick=()=>share(`BITTER HERO STAGE ${state.stage} · ${Math.floor(state.score).toLocaleString()}점`);$('modalBack').onclick=e=>{if(e.target===$('modalBack'))closeModal()};document.body.addEventListener('pointerdown',()=>music.unlock(),{once:true});
+renderLobby();
 })();
-</script>
-</body>
-</html>
+</script></body></html>
