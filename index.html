@@ -63,9 +63,9 @@
   }
   .mini-btn { background: rgba(255,255,255,.12); color:#fff; padding: 10px 12px; }
   .btn-row { display:flex; gap:10px; }
-  .home-wrap { position:relative; width:100%; height:100%; background:#08142d; }
-  .home-art { width:100%; height:100%; object-fit:cover; display:block; }
-  .hotspot { position:absolute; background: transparent; }
+  .home-wrap { position:relative; width:100%; height:100%; background:#08142d; touch-action:manipulation; }
+  .home-art { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; user-select:none; -webkit-user-drag:none; }
+  .hotspot { position:absolute; background: transparent; z-index:6; pointer-events:auto; border:0; outline:0; padding:0; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   .home-linkbar {
     position:absolute; top:14px; right:14px; display:flex; gap:8px; z-index:3;
   }
@@ -198,16 +198,16 @@
 <body>
 <div class="app" id="app">
   <section class="screen active" id="homeScreen">
-    <div class="home-wrap">
+    <div class="home-wrap" id="homeWrap">
       <img class="home-art" src="assets/start-screen.png" alt="Bitter Hero 시작 화면" />
       <div class="home-linkbar">
         <button class="icon-chip" id="shareHomeBtn">공유</button>
         <button class="icon-chip" id="booksHomeBtn">BitterBooks</button>
       </div>
-      <button class="hotspot" id="homeStartHotspot" aria-label="게임 시작" style="left:8%; width:84%; top:62%; height:10%;"></button>
-      <button class="hotspot" id="homeAchHotspot" aria-label="업적" style="left:5%; width:28%; top:83.7%; height:8%;"></button>
-      <button class="hotspot" id="homeScoreHotspot" aria-label="점수판" style="left:36%; width:28%; top:83.7%; height:8%;"></button>
-      <button class="hotspot" id="homeSettingsHotspot" aria-label="설정" style="left:67%; width:28%; top:83.7%; height:8%;"></button>
+      <button class="hotspot" id="homeStartHotspot" aria-label="게임 시작" style="left:7%; width:86%; top:72.2%; height:11.2%;"></button>
+      <button class="hotspot" id="homeAchHotspot" aria-label="업적" style="left:3%; width:30%; top:85.0%; height:11%;"></button>
+      <button class="hotspot" id="homeScoreHotspot" aria-label="점수판" style="left:35%; width:30%; top:85.0%; height:11%;"></button>
+      <button class="hotspot" id="homeSettingsHotspot" aria-label="설정" style="left:67%; width:30%; top:85.0%; height:11%;"></button>
     </div>
   </section>
 
@@ -1022,10 +1022,30 @@
 
   function bindGlobalEvents() {
     document.body.addEventListener('pointerdown', () => sound.unlock(), { once: true });
-    document.getElementById('homeStartHotspot').addEventListener('click', () => { sound.unlock(); goScreen('select'); renderStageList(); });
-    document.getElementById('homeAchHotspot').addEventListener('click', () => openModal('achievements'));
-    document.getElementById('homeScoreHotspot').addEventListener('click', () => openModal('scores'));
-    document.getElementById('homeSettingsHotspot').addEventListener('click', () => openModal('settings'));
+    const openStageSelect = () => { sound.unlock(); goScreen('select'); renderStageList(); };
+    document.getElementById('homeStartHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openStageSelect(); });
+    document.getElementById('homeAchHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal('achievements'); });
+    document.getElementById('homeScoreHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal('scores'); });
+    document.getElementById('homeSettingsHotspot').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openModal('settings'); });
+
+    // Responsive fallback: the home artwork is a single image, so use normalized
+    // tap coordinates as a second route. This keeps the visible buttons clickable
+    // even when the image is cropped differently on various phone aspect ratios.
+    document.getElementById('homeWrap').addEventListener('pointerup', (e) => {
+      if (e.target.closest('button')) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const nx = (e.clientX - rect.left) / rect.width;
+      const ny = (e.clientY - rect.top) / rect.height;
+      if (ny >= 0.70 && ny <= 0.845) {
+        openStageSelect();
+        return;
+      }
+      if (ny >= 0.84) {
+        if (nx < 0.34) openModal('achievements');
+        else if (nx < 0.66) openModal('scores');
+        else openModal('settings');
+      }
+    });
     document.getElementById('shareHomeBtn').addEventListener('click', () => shareGame());
     document.getElementById('shareLobbyBtn').addEventListener('click', () => shareGame());
     document.getElementById('shareResultBtn').addEventListener('click', () => shareGame(`BITTER HERO STAGE ${state.stage} ${state.resultStatus === 'clear' ? '클리어!' : '도전중!'} 점수 ${Math.floor(state.score)}점`));

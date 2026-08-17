@@ -1,0 +1,3 @@
+Bitter Hero V6.1 Home Start Fix
+Fix: corrected start-screen touch zones and added responsive coordinate fallback.
+Upload index.html, assets/, CNAME, .nojekyll, BUILD.txt to repository root.
