@@ -1,27 +1,29 @@
-BitterBooks Bitter Hero V2
+Bitter Hero V4 — 3 Stage + Dynamic BGM + Settings + Share
 
-구성
-- index.html : 모바일 웹게임
-- assets/bg.png : 신규 생성 배경
-- assets/hero.png : 신규 생성 메인 캐릭터
-- assets/enemy.png : 신규 생성 손가락 몬스터
-- assets/gold.png : 신규 생성 황금 보너스
-- assets/shield.png : 신규 생성 비터 블라스트 아이템
-- concept-board.png : 신규 게임 방향 시각 보드
+배포 방법
+- 이 폴더 안의 index.html, assets 폴더, 이미지 파일을 GitHub Pages 저장소 루트에 업로드하세요.
+- 권장 주소: https://game.bitterbooks.com
 
-주요 변경
-- 기존 mouth.png / finger.png 미사용
-- 할인쿠폰 UI/코드 완전 삭제
-- 45초 타임어택
-- 랜덤 미션
-- 일반/번개/가짜/황금 손가락
-- 엄지왕 보스전 + 연타 HP
-- 보스 격파 후 BITTER FEVER
-- 콤보/퍼펙트/햅틱/파티클/스크린 셰이크
-- 로컬 최고기록 저장
-- 기존 Cloudflare 랭킹 API 연동 유지
-- 결과 화면에서 책 연결은 보조 CTA로 배치
+V4 주요 기능
+1. 3스테이지 진행 / 스테이지별 보스 / Stage 3 최종보스 3페이즈
+2. 상황별 오리지널 BGM 자동 전환
+   - stage1.mp3: 밝고 가벼운 놀이터 테마
+   - stage2.mp3: 빠른 네온/전자 테마
+   - stage3.mp3: 긴장감 있는 성 테마
+   - boss.mp3: 일반 보스전
+   - finalboss.mp3: 최종보스전
+   - fever.mp3: BITTER FEVER
+   - clear.mp3: 스테이지 클리어 징글
+3. 설정
+   - 난이도: 쉬움 / 보통 / 도전
+   - BGM ON/OFF
+   - 효과음 ON/OFF
+   - 설정값 localStorage 저장
+4. 공유
+   - 홈에서 게임 공유
+   - 스테이지 클리어 기록 공유
+   - ALL CLEAR 결과/점수 공유
+   - 모바일 Web Share 지원, 미지원 환경은 링크 복사
+5. SNS OG 메타 태그 추가
 
-배포
-웹서버에 이 폴더 내용을 그대로 업로드하면 됩니다.
-HTTPS 환경을 권장합니다.
+난이도는 이동 속도, 등장 간격, 터치 판정, 보스 HP에 반영됩니다.
